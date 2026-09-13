@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/logging",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Centralized structured logging used across the desktop application and analysis engine.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

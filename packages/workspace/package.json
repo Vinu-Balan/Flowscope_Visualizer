@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/workspace",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Project/workspace identity, settings, and open-project lifecycle management.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

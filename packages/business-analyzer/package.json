@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/business-analyzer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Business Semantic Model inference: turns technical semantic models into business-meaningful steps with confidence scoring.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

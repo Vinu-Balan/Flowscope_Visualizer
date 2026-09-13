@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/ipc",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed IPC contract definitions and validation shared between the Electron main process and renderer.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/parser-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Framework-agnostic parsing and AST abstractions shared by language-specific parser adapters.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

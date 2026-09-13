@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "FlowScope's shared React component library (design system) used by the desktop application.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

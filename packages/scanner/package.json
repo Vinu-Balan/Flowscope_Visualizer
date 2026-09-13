@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/scanner",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Project discovery and source scanning: Maven/Gradle detection, file discovery, incremental content-hash-based indexing.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

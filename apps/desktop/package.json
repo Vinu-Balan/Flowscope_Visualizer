@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "FlowScope Electron + React + TypeScript desktop application shell.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

@@ -1,0 +1,13 @@
+Copyright (c) 2026 FlowScope. All rights reserved.
+
+This software and associated source code are proprietary and confidential.
+No commercial license model has been finalized yet (see docs/adr and
+Section 48 "Licensing" of the product specification in docs/MASTER_PLAN.md).
+Until a license is formally published, no rights are granted to copy,
+modify, distribute, sublicense, or use this software, in whole or in part,
+except as explicitly authorized by the copyright holder.
+
+This placeholder will be replaced with the finalized commercial license
+(Community / Professional / Enterprise editions or equivalent) prior to
+any public or commercial distribution, per docs/adr/ADR-006-licensing-model.md
+(to be authored when the licensing decision is made).

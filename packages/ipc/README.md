@@ -1,0 +1,16 @@
+# @flowscope/ipc
+
+The closed set of named, typed IPC operations shared between the Electron
+main process and renderer in `apps/desktop`
+(`docs/adr/ADR-004-ipc-boundary.md`): `project.open`, `project.scan`,
+`analysis.start`, `analysis.cancel`, `analysis.status`, `graph.load`,
+`graph.save`, `source.open`, and any future operation added with the same
+discipline. Every operation has an explicit input/output type, validated on
+both sides. No generic `execute(command)`-style operation is ever added
+here (`MASTER_PLAN.md` §31).
+
+This package is effectively the full renderer-visible capability surface of
+FlowScope — review changes to it with the same scrutiny as the preload
+script itself.
+
+**Status:** not yet implemented — see `docs/sprints/SPRINT-1.md`.

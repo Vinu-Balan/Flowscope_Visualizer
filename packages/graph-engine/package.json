@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/graph-engine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "In-memory Business Execution Graph domain model: construction, querying, validation, and projection into business/developer/technical detail levels.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

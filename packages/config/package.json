@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Centralized application configuration and settings persistence.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

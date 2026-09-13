@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/parser-java",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Java source parsing adapter (JavaParser-based) producing a Java Semantic Model.",
+  "license": "UNLICENSED",
+  "type": "module"
+}

@@ -1,0 +1,8 @@
+{
+  "name": "@flowscope/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared contracts and DTOs used across the IPC boundary and between UI and domain packages.",
+  "license": "UNLICENSED",
+  "type": "module"
+}
