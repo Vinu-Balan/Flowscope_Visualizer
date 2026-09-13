@@ -92,7 +92,16 @@ cross-boundary calls are explicit, named, typed operations defined in
 
 ## Status
 
-This document describes the target structure. As of this writing the
-repository contains only scaffolding (package manifests + READMEs per
-package) — no implementation code yet. See `docs/sprints/SPRINT-1.md` for
-the first implementation sprint.
+`apps/desktop`, `packages/core`, `packages/logging`, `packages/config`,
+`packages/ipc`, and `packages/ui` are implemented (SPRINT-1 — see
+`docs/sprints/SPRINT-1.md`). `apps/parser-engine` and the remaining
+`packages/*` (`shared`, `visualization`, `graph-schema`, `graph-engine`,
+`parser-core`, `parser-java`, `parser-spring`, `business-analyzer`,
+`workspace`, `scanner`) are still scaffolding only, pending SPRINT-2 onward.
+
+One structural refinement worth noting: `packages/config` publishes two
+entry points, not one — `@flowscope/config` (the full barrel, main-process
+only) and `@flowscope/config/settings` (the zod schema, Node-free, safe for
+the sandboxed preload script or any future renderer code). See the comment
+atop `packages/config/src/settings.ts` and the "found during implementation"
+note in `docs/sprints/SPRINT-1.md` for why.

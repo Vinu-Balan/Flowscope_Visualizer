@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 222 20% 9%;
+  --foreground: 210 20% 92%;
+  --surface: 222 18% 12%;
+  --surface-hover: 222 16% 17%;
+  --border: 222 14% 20%;
+  --muted: 222 14% 16%;
+  --muted-foreground: 215 12% 60%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 217 91% 60%;
+}
+
+:root[data-theme='light'] {
+  --background: 0 0% 100%;
+  --foreground: 222 20% 12%;
+  --surface: 210 20% 98%;
+  --surface-hover: 210 20% 94%;
+  --border: 214 15% 88%;
+  --muted: 210 20% 95%;
+  --muted-foreground: 215 12% 40%;
+  --accent: 217 91% 50%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 217 91% 50%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: hsl(var(--accent) / 0.3);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}

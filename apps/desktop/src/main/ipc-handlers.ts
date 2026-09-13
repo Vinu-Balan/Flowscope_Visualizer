@@ -1,0 +1,105 @@
+import type { SettingsStore } from '@flowscope/config';
+import { withRecentProject } from '@flowscope/config';
+import {
+  IPC_CHANNELS,
+  ProjectOpenResponseSchema,
+  SettingsGetResponseSchema,
+  SettingsUpdateRequestSchema,
+  SettingsUpdateResponseSchema,
+  SystemPingResponseSchema,
+  parseOrThrow,
+} from '@flowscope/ipc';
+import type { Logger } from '@flowscope/logging';
+import { app, dialog, ipcMain, type BrowserWindow } from 'electron';
+
+export interface RegisterIpcHandlersOptions {
+  readonly window: BrowserWindow;
+  readonly settings: SettingsStore;
+  readonly logger: Logger;
+}
+
+/**
+ * Registers every IPC operation in packages/ipc's contract — and only
+ * those; see docs/adr/ADR-004-ipc-boundary.md. Each handler validates its
+ * own response against the contract schema before returning it, so a bug
+ * that would produce an out-of-contract payload fails loudly in
+ * development instead of silently reaching the renderer.
+ */
+export function registerIpcHandlers({
+  window,
+  settings,
+  logger,
+}: RegisterIpcHandlersOptions): void {
+  const log = logger.child('ipc');
+
+  ipcMain.handle(IPC_CHANNELS.systemPing, () => {
+    const response = {
+      pong: true as const,
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      timestamp: Date.now(),
+    };
+    return parseOrThrow(SystemPingResponseSchema, response, {
+      channel: IPC_CHANNELS.systemPing,
+      direction: 'response',
+    });
+  });
+
+  ipcMain.handle(IPC_CHANNELS.projectOpen, async () => {
+    const result = await dialog.showOpenDialog(window, {
+      title: 'Open Project',
+      buttonLabel: 'Open',
+      properties: ['openDirectory'],
+    });
+
+    const selectedPath = result.filePaths[0];
+    if (result.canceled || selectedPath === undefined) {
+      log.info('project.open canceled by user');
+      return parseOrThrow(
+        ProjectOpenResponseSchema,
+        { canceled: true },
+        { channel: IPC_CHANNELS.projectOpen, direction: 'response' },
+      );
+    }
+
+    log.info('project.open selected a directory', { path: selectedPath });
+
+    const updateResult = await settings.update({
+      recentProjects: withRecentProject(settings.current.recentProjects, selectedPath),
+    });
+    if (!updateResult.ok) {
+      log.warn('failed to record recent project', { error: updateResult.error.toJSON() });
+    }
+
+    return parseOrThrow(
+      ProjectOpenResponseSchema,
+      { canceled: false, path: selectedPath },
+      { channel: IPC_CHANNELS.projectOpen, direction: 'response' },
+    );
+  });
+
+  ipcMain.handle(IPC_CHANNELS.settingsGet, () =>
+    parseOrThrow(SettingsGetResponseSchema, settings.current, {
+      channel: IPC_CHANNELS.settingsGet,
+      direction: 'response',
+    }),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.settingsUpdate, async (_event, rawPatch: unknown) => {
+    const patch = parseOrThrow(SettingsUpdateRequestSchema, rawPatch, {
+      channel: IPC_CHANNELS.settingsUpdate,
+      direction: 'request',
+    });
+
+    const result = await settings.update(patch);
+    if (!result.ok) {
+      log.error('settings.update failed', { error: result.error.toJSON() });
+      throw result.error;
+    }
+
+    return parseOrThrow(SettingsUpdateResponseSchema, result.value, {
+      channel: IPC_CHANNELS.settingsUpdate,
+      direction: 'response',
+    });
+  });
+}

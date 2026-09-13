@@ -11,4 +11,6 @@ No other package should reimplement what belongs here — check `core` (and
 `packages/shared`) before adding a new cross-cutting utility
 (`docs/CODING_GUIDELINES.md`).
 
-**Status:** not yet implemented — see `docs/sprints/SPRINT-1.md`.
+**Status:** implemented (SPRINT-1) — `Result<T, E>`, the `FlowScopeError`
+hierarchy, and `createId()`. `events/`, `types/`, and `validation/` are
+still just concepts, added when a concrete need arises.

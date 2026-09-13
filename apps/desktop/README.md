@@ -15,4 +15,7 @@ sandboxed where compatible, minimal preload surface — see
 `docs/adr/ADR-003-electron-architecture.md` and
 `docs/architecture/security-architecture.md`.
 
-**Status:** not yet implemented — see `docs/sprints/SPRINT-1.md`.
+**Status:** desktop shell implemented (SPRINT-1) — window, routing, command
+palette, settings dialog, theme system, and the IPC-backed toolbar/status
+bar. `packages/visualization` and Monaco aren't wired in yet; that starts
+with graph rendering (Weekend 6) and source navigation (Weekend 8).

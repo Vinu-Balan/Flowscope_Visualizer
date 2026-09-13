@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@flowscope/core": ["../../packages/core/src/index.ts"],
+      "@flowscope/logging": ["../../packages/logging/src/index.ts"],
+      "@flowscope/config": ["../../packages/config/src/index.ts"],
+      "@flowscope/config/*": ["../../packages/config/src/*"],
+      "@flowscope/ipc": ["../../packages/ipc/src/index.ts"]
+    }
+  },
+  "include": ["src/main/**/*", "src/preload/**/*"]
+}

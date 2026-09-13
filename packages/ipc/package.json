@@ -4,5 +4,19 @@
   "private": true,
   "description": "Typed IPC contract definitions and validation shared between the Electron main process and renderer.",
   "license": "UNLICENSED",
-  "type": "module"
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@flowscope/config": "workspace:*",
+    "@flowscope/core": "workspace:*",
+    "zod": "^3.24.1"
+  }
 }

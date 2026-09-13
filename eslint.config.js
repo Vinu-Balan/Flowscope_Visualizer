@@ -29,6 +29,7 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/no-invalid-void-type': ['error', { allowAsThisParameter: true }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },

@@ -1,3 +1,11 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# Electron and esbuild ship native postinstall scripts (Electron downloads
+# its prebuilt binary; esbuild installs its platform binary). Explicitly
+# allowlisting them is pnpm's supply-chain guard against arbitrary install
+# scripts running for every other dependency.
+onlyBuiltDependencies:
+  - electron
+  - esbuild

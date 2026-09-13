@@ -73,6 +73,11 @@ project.
 
 ## Current status
 
-Repository scaffolding only (monorepo structure, tooling config, docs).
-No sprint has started implementation yet. Next up: `docs/sprints/SPRINT-1.md`
-(Weekend 1 — Desktop foundation).
+**Weekend 1 (Desktop foundation) complete** — see `docs/sprints/SPRINT-1.md`.
+FlowScope launches as a real Electron desktop app: Welcome/Workspace routes,
+resizable three-pane workspace shell, command palette, settings dialog,
+theme system, and a working IPC contract (ping, project-open dialog,
+settings get/update), all backed by tested `packages/core`,
+`packages/logging`, `packages/config`, `packages/ipc`, and `packages/ui`.
+No project scanning/analysis yet — that begins at Weekend 2
+(`docs/sprints/SPRINT-2.md`, not yet written).

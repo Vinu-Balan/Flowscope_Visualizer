@@ -9,4 +9,7 @@ Figma inspired, never copied verbatim).
 Contains presentation components only — no business logic, no direct IPC
 calls (`docs/CODING_GUIDELINES.md`). Consumed by `apps/desktop`.
 
-**Status:** not yet implemented — see `docs/sprints/SPRINT-1.md`.
+**Status:** implemented (SPRINT-1) — `Button`, `Tooltip`, `Tabs`, `Dialog`,
+`ScrollArea`, `Separator`, `EmptyState`, `Kbd`, `StatusBarItem`, and a
+Zustand-backed `Toast`/`Toaster`. Grows as later sprints need new
+primitives (e.g. a graph legend, a confidence badge).

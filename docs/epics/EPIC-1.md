@@ -39,7 +39,7 @@ microservice deployment platform.
 Tracked as individual sprints under `docs/sprints/`, sequenced per
 `docs/ROADMAP.md`'s ten-weekend plan:
 
-1. Desktop foundation (`SPRINT-1.md`)
+1. Desktop foundation (`SPRINT-1.md`) — complete
 2. Project opening
 3. Project scanner
 4. API discovery
@@ -75,5 +75,7 @@ conditional branches, exceptions, external calls, and transactions:
 
 ## Status
 
-Not started. Depends on EPIC-0 scaffolding being in place (done) and
-`pnpm install` + toolchain verification (pending, see `EPIC-0.md`).
+In progress. SPRINT-1 (desktop foundation) is complete and verified — see
+`docs/sprints/SPRINT-1.md`. Project scanning/analysis and everything it
+unlocks (APIs, business flows, Inspector, source navigation) has not
+started; that's SPRINT-2 onward.

@@ -9,5 +9,7 @@ Centralized, leveled (`debug`/`info`/`warn`/`error`) structured logging for
 personal data — enforced by convention and reviewed at every call site that
 logs analysis or project data.
 
-**Status:** not yet implemented — first real usage lands in
-`docs/sprints/SPRINT-1.md`.
+**Status:** implemented (SPRINT-1) — `createLogger`, a console transport
+(pretty in dev, JSON in prod), a Node-only file transport (writes to
+`<userData>/logs/flowscope.log`, serialized so concurrent writes stay in
+order), and metadata redaction. Wired into `apps/desktop`'s main process.

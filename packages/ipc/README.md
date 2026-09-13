@@ -13,4 +13,8 @@ This package is effectively the full renderer-visible capability surface of
 FlowScope — review changes to it with the same scrutiny as the preload
 script itself.
 
-**Status:** not yet implemented — see `docs/sprints/SPRINT-1.md`.
+**Status:** `system.ping`, `project.open`, `settings.get`, and
+`settings.update` are implemented (SPRINT-1), each with a zod request/response
+schema and validated via `parseOrThrow` on both the main and preload sides.
+`project.scan`, `analysis.*`, `graph.*`, and `source.open` land as the
+sprints that need them (SPRINT-2 onward).

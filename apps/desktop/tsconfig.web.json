@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@flowscope/core": ["../../packages/core/src/index.ts"],
+      "@flowscope/ipc": ["../../packages/ipc/src/index.ts"],
+      "@flowscope/config": ["../../packages/config/src/index.ts"],
+      "@flowscope/config/*": ["../../packages/config/src/*"],
+      "@flowscope/ui": ["../../packages/ui/src/index.ts"],
+      "@renderer/*": ["./src/renderer/src/*"]
+    }
+  },
+  "include": ["src/renderer/src/**/*", "src/preload/*.d.ts"]
+}
