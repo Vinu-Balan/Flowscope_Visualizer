@@ -73,18 +73,23 @@ project.
 
 ## Current status
 
-**Weekends 1–3 (Desktop foundation, Project opening, Project scanner)
-complete** — see `docs/sprints/SPRINT-1.md` through `SPRINT-3.md`.
-FlowScope launches as a real Electron desktop app: Welcome/Workspace
-routes, resizable three-pane workspace shell, command palette, settings
-dialog, theme system, and a working IPC contract (ping, project-open
-dialog, project validation, project scanning, settings get/update).
-Opening a project runs real Maven/Gradle validation (`packages/workspace`)
-with a Recent Projects list; clicking Analyze (or Ctrl/Cmd+Shift+A) walks
-the project's file tree (`packages/scanner`) and shows a real Java/resource
-file count in the Architecture sidebar. All backed by tested
+**Weekends 1–4 (Desktop foundation, Project opening, Project scanner, API
+discovery) complete** — see `docs/sprints/SPRINT-1.md` through
+`SPRINT-4.md`. FlowScope launches as a real Electron desktop app:
+Welcome/Workspace routes, resizable three-pane workspace shell, command
+palette, settings dialog, theme system, and a working IPC contract (ping,
+project-open dialog, project validation, project scanning, API discovery,
+settings get/update). Opening a project runs real Maven/Gradle validation
+(`packages/workspace`) with a Recent Projects list; clicking Analyze (or
+Ctrl/Cmd+Shift+A) walks the project's file tree (`packages/scanner`), then
+parses its Java files (`packages/parser-java`, ADR-006) and discovers
+Spring MVC REST endpoints (`packages/parser-spring`) — both now shown in
+the Architecture sidebar, with a real Java/resource file count and a
+clickable, method-badged list of discovered APIs. All backed by tested
 `packages/core`, `packages/logging`, `packages/config`, `packages/ipc`,
-`packages/workspace`, `packages/scanner`, and `packages/ui`, plus the
-first real test fixture (`tests/fixtures/simple-customer-service`).
-No Java parsing yet (files are discovered, not read for meaning) — that
-begins at Weekend 4 (`docs/sprints/SPRINT-4.md`, not yet written).
+`packages/workspace`, `packages/scanner`, `packages/parser-java`,
+`packages/parser-spring`, and `packages/ui`, plus the first real test
+fixture (`tests/fixtures/simple-customer-service`).
+Business flow inference — turning a selected API into an actual flow
+diagram, rather than just acknowledging the selection — begins at Weekend
+5 (`docs/sprints/SPRINT-5.md`, not yet written).

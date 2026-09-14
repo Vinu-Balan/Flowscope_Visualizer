@@ -19,6 +19,8 @@ const WORKSPACE_PACKAGES = [
   'ui',
   'workspace',
   'scanner',
+  'parser-java',
+  'parser-spring',
 ] as const;
 
 function workspaceAliases(): Record<string, string> {

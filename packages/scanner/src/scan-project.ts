@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
-import { AnalysisError, err, ok, type Result } from '@flowscope/core';
+import { AnalysisError, err, mapWithConcurrency, ok, type Result } from '@flowscope/core';
 import type { ProjectScanResult, ScannedFile, ScannedJavaFile, SourceSet } from './scan-result';
 
 const EXCLUDED_DIRECTORY_NAMES = new Set(['node_modules', 'target', 'build', 'out', 'dist', 'bin']);
@@ -128,33 +128,6 @@ async function hashFile(absolutePath: string): Promise<string | undefined> {
   } catch {
     return undefined;
   }
-}
-
-async function mapWithConcurrency<T, R>(
-  items: readonly T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let nextIndex = 0;
-
-  async function worker(): Promise<void> {
-    for (;;) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-      if (currentIndex >= items.length) {
-        return;
-      }
-      const item = items[currentIndex];
-      if (item !== undefined) {
-        results[currentIndex] = await fn(item);
-      }
-    }
-  }
-
-  const workerCount = Math.max(1, Math.min(limit, items.length));
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  return results;
 }
 
 /**

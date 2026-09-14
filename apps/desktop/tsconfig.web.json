@@ -13,6 +13,7 @@
       "@flowscope/workspace/*": ["../../packages/workspace/src/*"],
       "@flowscope/scanner": ["../../packages/scanner/src/index.ts"],
       "@flowscope/scanner/*": ["../../packages/scanner/src/*"],
+      "@flowscope/parser-spring/api": ["../../packages/parser-spring/src/api.ts"],
       "@renderer/*": ["./src/renderer/src/*"]
     }
   },

@@ -42,7 +42,7 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
 1. Desktop foundation (`SPRINT-1.md`) — complete
 2. Project opening (`SPRINT-2.md`) — complete
 3. Project scanner (`SPRINT-3.md`) — complete
-4. API discovery
+4. API discovery (`SPRINT-4.md`) — complete
 5. Business flow engine
 6. Graph visualization
 7. Inspector
@@ -62,8 +62,8 @@ added as later sprints need what they specifically exercise.
 
 ## Acceptance criteria for the epic as a whole
 
-- [ ] A real Spring Boot project can be opened and analyzed without errors.
-- [ ] Discovered APIs appear in the Architecture sidebar.
+- [x] A real Spring Boot project can be opened and analyzed without errors.
+- [x] Discovered APIs appear in the Architecture sidebar.
 - [ ] Selecting an API renders a business-level flow the user can read
       without Spring knowledge.
 - [ ] Selecting a node opens an Inspector with business + technical detail
@@ -77,8 +77,10 @@ added as later sprints need what they specifically exercise.
 ## Status
 
 In progress. SPRINT-1 (desktop foundation), SPRINT-2 (project opening —
-real Maven/Gradle validation), and SPRINT-3 (project scanner — Java/resource
-file discovery, surfaced in the Architecture sidebar) are complete and
-verified. Nothing reads the _contents_ of a Java file yet — API discovery,
-business flows, the Inspector, and source navigation all depend on
-SPRINT-4's parser and have not started.
+real Maven/Gradle validation), SPRINT-3 (project scanner — Java/resource
+file discovery, surfaced in the Architecture sidebar), and SPRINT-4 (API
+discovery — real Java parsing via `packages/parser-java`, Spring MVC
+endpoint discovery via `packages/parser-spring`, both surfaced in a
+clickable Architecture sidebar list) are complete and verified. Business
+flows, the Inspector, and source navigation all depend on SPRINT-5 onward
+and have not started.

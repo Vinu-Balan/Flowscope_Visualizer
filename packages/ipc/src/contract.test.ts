@@ -90,6 +90,44 @@ describe('IPC_CONTRACT', () => {
     expect(contract.response.safeParse({ status: 'error' }).success).toBe(false);
   });
 
+  it('project.discoverApis request requires a path and a list of relative paths', () => {
+    const contract = IPC_CONTRACT[IPC_CHANNELS.projectDiscoverApis];
+    expect(
+      contract.request.safeParse({ path: '/tmp/demo', javaFileRelativePaths: ['A.java'] }).success,
+    ).toBe(true);
+    expect(
+      contract.request.safeParse({ path: '/tmp/demo', javaFileRelativePaths: [] }).success,
+    ).toBe(true);
+    expect(contract.request.safeParse({ path: '', javaFileRelativePaths: [] }).success).toBe(false);
+    expect(contract.request.safeParse({ path: '/tmp/demo' }).success).toBe(false);
+  });
+
+  it('project.discoverApis response accepts both success and error outcomes', () => {
+    const contract = IPC_CONTRACT[IPC_CHANNELS.projectDiscoverApis];
+    expect(
+      contract.response.safeParse({
+        status: 'success',
+        result: {
+          apis: [
+            {
+              id: 'GET /customers#A.java:list',
+              httpMethod: 'GET',
+              path: '/customers',
+              className: 'CustomerController',
+              methodName: 'list',
+              file: 'A.java',
+              line: 10,
+            },
+          ],
+          parsedFileCount: 1,
+          failedFileCount: 0,
+        },
+      }).success,
+    ).toBe(true);
+    expect(contract.response.safeParse({ status: 'error', message: 'boom' }).success).toBe(true);
+    expect(contract.response.safeParse({ status: 'error' }).success).toBe(false);
+  });
+
   it('settings.get response is the full Settings shape', () => {
     const contract = IPC_CONTRACT[IPC_CHANNELS.settingsGet];
     expect(contract.response.safeParse(DEFAULT_SETTINGS).success).toBe(true);

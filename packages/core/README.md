@@ -12,5 +12,8 @@ No other package should reimplement what belongs here — check `core` (and
 (`docs/CODING_GUIDELINES.md`).
 
 **Status:** implemented (SPRINT-1) — `Result<T, E>`, the `FlowScopeError`
-hierarchy, and `createId()`. `events/`, `types/`, and `validation/` are
+hierarchy, and `createId()`. `mapWithConcurrency` (bounded-concurrency
+async mapping) was added in SPRINT-4, extracted from `packages/scanner`
+once `packages/parser-spring` needed the same utility (`docs/CODING_GUIDELINES.md`'s
+"no duplicate utilities" rule). `events/`, `types/`, and `validation/` are
 still just concepts, added when a concrete need arises.

@@ -1,4 +1,5 @@
 import type { Settings, SettingsUpdate } from '@flowscope/config';
+import type { ProjectScanResult } from '@flowscope/scanner/scan-result';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getFlowScopeApi } from './ipc-client';
 
@@ -6,6 +7,7 @@ export const queryKeys = {
   ping: ['system', 'ping'] as const,
   settings: ['settings'] as const,
   projectScan: (projectPath: string) => ['project-scan', projectPath] as const,
+  projectDiscoverApis: (projectPath: string) => ['project-discover-apis', projectPath] as const,
 };
 
 /** Confirms the main process is up — surfaced in the status bar. */
@@ -72,6 +74,40 @@ export function useProjectScanQuery(projectPath: string | undefined) {
     queryKey: queryKeys.projectScan(projectPath ?? ''),
     queryFn: async () => {
       const response = await getFlowScopeApi().scanProject(projectPath ?? '');
+      if (response.status === 'error') {
+        throw new Error(response.message);
+      }
+      return response.result;
+    },
+    enabled: false,
+    retry: false,
+  });
+}
+
+/**
+ * Discovers Spring MVC APIs in the project's non-test Java files
+ * (docs/sprints/SPRINT-4.md). A lazy query like `useProjectScanQuery` above,
+ * sharing the same cache-key-per-project pattern. Its `queryFn` reads the
+ * scan result straight out of the query cache rather than taking it as a
+ * hook argument, so a `refetch()` always sees whatever scan most recently
+ * completed instead of a stale closure from the render that called it.
+ */
+export function useDiscoverApisQuery(projectPath: string | undefined) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: queryKeys.projectDiscoverApis(projectPath ?? ''),
+    queryFn: async () => {
+      const scanResult = queryClient.getQueryData<ProjectScanResult>(
+        queryKeys.projectScan(projectPath ?? ''),
+      );
+      const javaFileRelativePaths = (scanResult?.javaFiles ?? [])
+        .filter((file) => file.sourceSet !== 'test')
+        .map((file) => file.path);
+
+      const response = await getFlowScopeApi().discoverApis(
+        projectPath ?? '',
+        javaFileRelativePaths,
+      );
       if (response.status === 'error') {
         throw new Error(response.message);
       }

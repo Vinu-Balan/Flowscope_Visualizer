@@ -8,6 +8,9 @@ export { SystemPingRequestSchema, SystemPingResponseSchema } from './contracts/s
 export type { SystemPingResponse } from './contracts/system';
 
 export {
+  DiscoverApisResultSchema,
+  ProjectDiscoverApisRequestSchema,
+  ProjectDiscoverApisResponseSchema,
   ProjectOpenRequestSchema,
   ProjectOpenResponseSchema,
   ProjectScanRequestSchema,
@@ -15,7 +18,11 @@ export {
   ProjectValidateRequestSchema,
   ProjectValidateResponseSchema,
 } from './contracts/project';
-export type { ProjectOpenResponse, ProjectScanResponse } from './contracts/project';
+export type {
+  ProjectDiscoverApisResponse,
+  ProjectOpenResponse,
+  ProjectScanResponse,
+} from './contracts/project';
 
 export {
   SettingsGetRequestSchema,

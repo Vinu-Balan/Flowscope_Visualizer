@@ -1,6 +1,7 @@
 import { EmptyState } from '@flowscope/ui';
 import { MousePointerClick, Waypoints } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useDiscoverApisQuery } from '../lib/queries';
 import { useAppStore } from '../store/app-store';
 import { Sidebar } from './sidebar';
 
@@ -11,6 +12,9 @@ const BUILD_SYSTEM_LABEL = { maven: 'Maven', gradle: 'Gradle' } as const;
 
 export function WorkspaceShell() {
   const currentProject = useAppStore((state) => state.currentProject);
+  const selectedApiId = useAppStore((state) => state.selectedApiId);
+  const discoverApisQuery = useDiscoverApisQuery(currentProject?.path);
+  const selectedApi = discoverApisQuery.data?.apis.find((api) => api.id === selectedApiId);
 
   return (
     <PanelGroup direction="horizontal" className="min-h-0 flex-1">
@@ -25,9 +29,11 @@ export function WorkspaceShell() {
           icon={<Waypoints />}
           title="No business flow to show yet"
           description={
-            currentProject
-              ? `${currentProject.name} (${BUILD_SYSTEM_LABEL[currentProject.buildSystem]}) is open. Run analysis once it's available to discover its APIs and see their business flows here.`
-              : 'Select an API from the sidebar once analysis is available to see its business flow here.'
+            selectedApi
+              ? `Selected: ${selectedApi.httpMethod} ${selectedApi.path} — business flow inference lands in a later sprint.`
+              : currentProject
+                ? `${currentProject.name} (${BUILD_SYSTEM_LABEL[currentProject.buildSystem]}) is open. Run analysis and select a discovered API to see its business flow here.`
+                : 'Select an API from the sidebar once analysis is available to see its business flow here.'
           }
         />
       </Panel>

@@ -42,7 +42,7 @@ flowscope/
 │   ├── graph-engine/       In-memory BEG domain model: build/query/validate/
 │   │                      project (business/developer/technical levels)
 │   ├── parser-core/        Framework-agnostic parsing/AST abstractions
-│   ├── parser-java/        Java parsing adapter (JavaParser-based)
+│   ├── parser-java/        Java parsing adapter (java-parser-based, ADR-006)
 │   ├── parser-spring/      Spring semantic analyzer
 │   ├── business-analyzer/  Business Semantic Model inference + confidence
 │   ├── workspace/          Project/workspace identity and lifecycle
@@ -93,12 +93,12 @@ cross-boundary calls are explicit, named, typed operations defined in
 ## Status
 
 `apps/desktop`, `packages/core`, `packages/logging`, `packages/config`,
-`packages/ipc`, `packages/workspace`, `packages/scanner`, and
-`packages/ui` are implemented (SPRINT-1 through SPRINT-3 — see
-`docs/sprints/`). `apps/parser-engine` and the remaining `packages/*`
-(`shared`, `visualization`, `graph-schema`, `graph-engine`, `parser-core`,
-`parser-java`, `parser-spring`, `business-analyzer`) are still scaffolding
-only, pending SPRINT-4 onward.
+`packages/ipc`, `packages/workspace`, `packages/scanner`,
+`packages/parser-java`, `packages/parser-spring`, and `packages/ui` are
+implemented (SPRINT-1 through SPRINT-4 — see `docs/sprints/`).
+`apps/parser-engine` and the remaining `packages/*` (`shared`,
+`visualization`, `graph-schema`, `graph-engine`, `parser-core`,
+`business-analyzer`) are still scaffolding only, pending SPRINT-5 onward.
 
 Three structural refinements worth noting, all the same pattern for the
 same reason — keep `node:fs` out of anything the sandboxed preload script
@@ -118,3 +118,9 @@ and a Node-only implementation should follow it too:
   `@flowscope/scanner/scan-result` (the zod schema for
   `ProjectScanResult`, Node-free). See the comment atop
   `packages/scanner/src/scan-result.ts`.
+- `packages/parser-spring` publishes `@flowscope/parser-spring` (the full
+  barrel, including the Node-only `discoverApis`) and
+  `@flowscope/parser-spring/api` (the zod schema for `DiscoveredApi`,
+  Node-free). `packages/parser-java` has no such split — nothing in it
+  ever crosses the IPC boundary, only the final `DiscoveredApi` shape
+  does. See `docs/adr/ADR-006-java-parsing-without-a-jvm.md`.

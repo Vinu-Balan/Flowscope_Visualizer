@@ -1,6 +1,8 @@
 import type { Settings, SettingsUpdate } from '@flowscope/config';
 import {
   IPC_CHANNELS,
+  ProjectDiscoverApisRequestSchema,
+  ProjectDiscoverApisResponseSchema,
   ProjectOpenResponseSchema,
   ProjectScanRequestSchema,
   ProjectScanResponseSchema,
@@ -11,6 +13,7 @@ import {
   SettingsUpdateResponseSchema,
   SystemPingResponseSchema,
   parseOrThrow,
+  type ProjectDiscoverApisResponse,
   type ProjectOpenResponse,
   type ProjectScanResponse,
   type SystemPingResponse,
@@ -65,6 +68,22 @@ const flowscopeApi = {
     const raw: unknown = await ipcRenderer.invoke(IPC_CHANNELS.projectScan, request);
     return parseOrThrow(ProjectScanResponseSchema, raw, {
       channel: IPC_CHANNELS.projectScan,
+      direction: 'response',
+    });
+  },
+
+  async discoverApis(
+    path: string,
+    javaFileRelativePaths: readonly string[],
+  ): Promise<ProjectDiscoverApisResponse> {
+    const request = parseOrThrow(
+      ProjectDiscoverApisRequestSchema,
+      { path, javaFileRelativePaths },
+      { channel: IPC_CHANNELS.projectDiscoverApis, direction: 'request' },
+    );
+    const raw: unknown = await ipcRenderer.invoke(IPC_CHANNELS.projectDiscoverApis, request);
+    return parseOrThrow(ProjectDiscoverApisResponseSchema, raw, {
+      channel: IPC_CHANNELS.projectDiscoverApis,
       direction: 'response',
     });
   },

@@ -1,6 +1,8 @@
 import type { z } from 'zod';
 import { IPC_CHANNELS } from './channels';
 import {
+  ProjectDiscoverApisRequestSchema,
+  ProjectDiscoverApisResponseSchema,
   ProjectOpenRequestSchema,
   ProjectOpenResponseSchema,
   ProjectScanRequestSchema,
@@ -38,6 +40,10 @@ export const IPC_CONTRACT = {
   [IPC_CHANNELS.projectScan]: {
     request: ProjectScanRequestSchema,
     response: ProjectScanResponseSchema,
+  },
+  [IPC_CHANNELS.projectDiscoverApis]: {
+    request: ProjectDiscoverApisRequestSchema,
+    response: ProjectDiscoverApisResponseSchema,
   },
   [IPC_CHANNELS.settingsGet]: {
     request: SettingsGetRequestSchema,

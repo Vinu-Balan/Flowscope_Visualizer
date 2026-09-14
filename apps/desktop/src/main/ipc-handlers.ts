@@ -2,6 +2,8 @@ import type { SettingsStore } from '@flowscope/config';
 import { withRecentProject } from '@flowscope/config';
 import {
   IPC_CHANNELS,
+  ProjectDiscoverApisRequestSchema,
+  ProjectDiscoverApisResponseSchema,
   ProjectOpenResponseSchema,
   ProjectScanRequestSchema,
   ProjectScanResponseSchema,
@@ -14,6 +16,7 @@ import {
   parseOrThrow,
 } from '@flowscope/ipc';
 import type { Logger } from '@flowscope/logging';
+import { discoverApis } from '@flowscope/parser-spring';
 import { scanProject } from '@flowscope/scanner';
 import { validateProject } from '@flowscope/workspace';
 import { app, dialog, ipcMain, type BrowserWindow } from 'electron';
@@ -147,6 +150,40 @@ export function registerIpcHandlers({
       ProjectScanResponseSchema,
       { status: 'success', result: result.value },
       { channel: IPC_CHANNELS.projectScan, direction: 'response' },
+    );
+  });
+
+  ipcMain.handle(IPC_CHANNELS.projectDiscoverApis, async (_event, rawRequest: unknown) => {
+    const request = parseOrThrow(ProjectDiscoverApisRequestSchema, rawRequest, {
+      channel: IPC_CHANNELS.projectDiscoverApis,
+      direction: 'request',
+    });
+
+    const result = await discoverApis(request.path, request.javaFileRelativePaths);
+
+    if (!result.ok) {
+      log.warn('project.discoverApis failed', {
+        path: request.path,
+        error: result.error.toJSON(),
+      });
+      return parseOrThrow(
+        ProjectDiscoverApisResponseSchema,
+        { status: 'error', message: result.error.message },
+        { channel: IPC_CHANNELS.projectDiscoverApis, direction: 'response' },
+      );
+    }
+
+    log.info('project.discoverApis completed', {
+      path: request.path,
+      apis: result.value.apis.length,
+      parsedFileCount: result.value.parsedFileCount,
+      failedFileCount: result.value.failedFileCount,
+    });
+
+    return parseOrThrow(
+      ProjectDiscoverApisResponseSchema,
+      { status: 'success', result: result.value },
+      { channel: IPC_CHANNELS.projectDiscoverApis, direction: 'response' },
     );
   });
 

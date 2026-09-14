@@ -24,6 +24,10 @@ honest errors for an invalid folder and a non-blocking warning when a
 project doesn't look like Spring Boot. SPRINT-3 wired up the Analyze button
 (and Ctrl/Cmd+Shift+A): it scans the project's file tree via
 `packages/scanner` and shows a real Java/resource file summary in the
-Architecture sidebar. `packages/visualization` and Monaco aren't wired in
-yet; that starts with graph rendering (Weekend 6) and source navigation
-(Weekend 8).
+Architecture sidebar. SPRINT-4 extended that same Analyze flow to parse
+the project's Java files (`packages/parser-java`) and discover Spring MVC
+REST endpoints (`packages/parser-spring`) right after the scan completes;
+the Architecture sidebar now lists the discovered APIs (HTTP method badge
+and path, click to select), and the center canvas reflects the current
+selection. `packages/visualization` and Monaco aren't wired in yet; that
+starts with graph rendering (Weekend 6) and source navigation (Weekend 8).

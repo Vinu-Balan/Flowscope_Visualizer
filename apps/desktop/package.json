@@ -20,6 +20,8 @@
     "@flowscope/core": "workspace:*",
     "@flowscope/ipc": "workspace:*",
     "@flowscope/logging": "workspace:*",
+    "@flowscope/parser-java": "workspace:*",
+    "@flowscope/parser-spring": "workspace:*",
     "@flowscope/scanner": "workspace:*",
     "@flowscope/ui": "workspace:*",
     "@flowscope/workspace": "workspace:*",

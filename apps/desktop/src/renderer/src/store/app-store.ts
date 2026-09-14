@@ -17,6 +17,10 @@ interface AppState {
   readonly currentProject: ValidatedProject | null;
   setCurrentProject: (project: ValidatedProject) => void;
   closeProject: () => void;
+
+  /** The API selected in the Architecture sidebar's discovered-APIs list (docs/sprints/SPRINT-4.md). */
+  readonly selectedApiId: string | null;
+  setSelectedApiId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -37,9 +41,14 @@ export const useAppStore = create<AppState>((set) => ({
 
   currentProject: null,
   setCurrentProject: (project) => {
-    set({ currentProject: project });
+    set({ currentProject: project, selectedApiId: null });
   },
   closeProject: () => {
-    set({ currentProject: null });
+    set({ currentProject: null, selectedApiId: null });
+  },
+
+  selectedApiId: null,
+  setSelectedApiId: (id) => {
+    set({ selectedApiId: id });
   },
 }));

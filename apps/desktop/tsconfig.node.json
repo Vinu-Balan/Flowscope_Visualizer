@@ -12,7 +12,10 @@
       "@flowscope/workspace": ["../../packages/workspace/src/index.ts"],
       "@flowscope/workspace/*": ["../../packages/workspace/src/*"],
       "@flowscope/scanner": ["../../packages/scanner/src/index.ts"],
-      "@flowscope/scanner/*": ["../../packages/scanner/src/*"]
+      "@flowscope/scanner/*": ["../../packages/scanner/src/*"],
+      "@flowscope/parser-java": ["../../packages/parser-java/src/index.ts"],
+      "@flowscope/parser-spring": ["../../packages/parser-spring/src/index.ts"],
+      "@flowscope/parser-spring/*": ["../../packages/parser-spring/src/*"]
     }
   },
   "include": ["src/main/**/*", "src/preload/**/*"]

@@ -1,19 +1,20 @@
 # @flowscope/parser-java
 
-The Java parsing adapter: turns Java source into a Java Semantic Model
-using JavaParser initially, with Eclipse JDT as a possible later option for
-deeper semantic resolution (`MASTER_PLAN.md` §11). Implements
+The Java parsing adapter: turns Java source text into a small,
+framework-agnostic Java Semantic Model (package name; top-level `class`
+declarations; their annotations and methods, each with a source line) using
+`java-parser` — a pure JavaScript/TypeScript, Chevrotain-based Java
+grammar, the same parser that powers `prettier-java`. See
+`docs/adr/ADR-006-java-parsing-without-a-jvm.md` for why this replaced the
+originally-planned JavaParser/JVM approach. Implements
 `packages/parser-core`'s abstractions for Java specifically. Isolated from
 Spring interpretation (`packages/parser-spring`) and from business
 inference (`packages/business-analyzer`).
 
-Note: `MASTER_PLAN.md` designates the long-term analysis engine as Rust
-(`apps/parser-engine`), while JavaParser is a JVM library. How this
-package's logic is actually invoked (JVM subprocess from the Rust engine,
-a Rust-native replacement, or another approach) is an implementation
-decision for the sprint that starts real Java parsing — this package
-exists now to hold the eventual contract/adapter boundary regardless of
-that choice, per the repository structure in `docs/ARCHITECTURE.md`.
+Its only public entry point is `parseJavaFile(source: string): Result<JavaSourceFile, ParserError>`
+(`src/parse-java-file.ts`) — malformed input fails softly as a typed
+`Result` error, never a thrown exception. There is no Node-only/isomorphic
+split like `packages/config`/`packages/workspace`/`packages/scanner`:
+nothing here is ever imported by the sandboxed preload script.
 
-**Status:** not yet implemented — see `docs/sprints/SPRINT-1.md` /
-Weekend 3.
+**Status:** implemented — see `docs/sprints/SPRINT-4.md` / Weekend 4.

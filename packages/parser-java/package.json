@@ -2,7 +2,20 @@
   "name": "@flowscope/parser-java",
   "version": "0.0.0",
   "private": true,
-  "description": "Java source parsing adapter (JavaParser-based) producing a Java Semantic Model.",
+  "description": "Java source parsing adapter (java-parser-based) producing a Java Semantic Model.",
   "license": "UNLICENSED",
-  "type": "module"
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@flowscope/core": "workspace:*",
+    "java-parser": "^3.0.1"
+  }
 }

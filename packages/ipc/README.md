@@ -14,8 +14,8 @@ FlowScope — review changes to it with the same scrutiny as the preload
 script itself.
 
 **Status:** `system.ping`, `project.open`, `project.validate`,
-`project.scan`, `settings.get`, and `settings.update` are implemented
-(SPRINT-1 through SPRINT-3), each with a zod request/response schema and
-validated via `parseOrThrow` on both the main and preload sides.
-`analysis.*`, `graph.*`, and `source.open` land as the sprints that need
-them (SPRINT-4 onward).
+`project.scan`, `project.discoverApis`, `settings.get`, and
+`settings.update` are implemented (SPRINT-1 through SPRINT-4), each with a
+zod request/response schema and validated via `parseOrThrow` on both the
+main and preload sides. `analysis.*`, `graph.*`, and `source.open` land as
+the sprints that need them (SPRINT-5 onward).
