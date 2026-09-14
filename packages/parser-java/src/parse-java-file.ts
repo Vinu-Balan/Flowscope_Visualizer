@@ -3,11 +3,14 @@ import {
   BaseJavaCstVisitorWithDefaults,
   parse,
   type ClassDeclarationCtx,
+  type FieldDeclarationCtx,
   type MethodDeclarationCtx,
   type PackageDeclarationCtx,
 } from 'java-parser';
+import { findFirstToken } from './cst-utils';
 import { extractAnnotationsFromModifiers } from './extract-annotation';
-import type { JavaAnnotation, JavaMethod, JavaSourceFile, JavaType } from './java-model';
+import { extractBodyEvents } from './extract-body-events';
+import type { JavaAnnotation, JavaField, JavaMethod, JavaSourceFile, JavaType } from './java-model';
 
 /**
  * `java-parser` (as pinned — see ADR-006) doesn't reliably recognize a
@@ -38,6 +41,7 @@ interface TypeFrame {
   name: string;
   readonly annotations: JavaAnnotation[];
   readonly methods: JavaMethod[];
+  readonly fields: JavaField[];
   line: number;
 }
 
@@ -85,7 +89,7 @@ class JavaSemanticModelVisitor extends BaseJavaCstVisitorWithDefaults {
     const name = nameToken ? nameToken.image : '';
     const line = nameToken ? nameToken.startLine : 0;
 
-    this.typeStack.push({ name, annotations, methods: [], line });
+    this.typeStack.push({ name, annotations, methods: [], fields: [], line });
 
     const classBody = normal.children.classBody[0];
     if (classBody) {
@@ -99,8 +103,24 @@ class JavaSemanticModelVisitor extends BaseJavaCstVisitorWithDefaults {
         kind: 'class',
         annotations: finished.annotations,
         methods: finished.methods,
+        fields: finished.fields,
         line: finished.line,
       });
+    }
+  }
+
+  override fieldDeclaration(ctx: FieldDeclarationCtx): void {
+    const current = this.typeStack[this.typeStack.length - 1];
+    if (!current) {
+      return;
+    }
+
+    const type = findFirstToken(ctx.unannType)?.image ?? '';
+    for (const declarator of ctx.variableDeclaratorList[0]?.children.variableDeclarator ?? []) {
+      const nameToken = declarator.children.variableDeclaratorId[0]?.children.Identifier?.[0];
+      if (nameToken) {
+        current.fields.push({ name: nameToken.image, type });
+      }
     }
   }
 
@@ -122,10 +142,13 @@ class JavaSemanticModelVisitor extends BaseJavaCstVisitorWithDefaults {
 
     const annotations = extractAnnotationsFromModifiers(ctx.methodModifier);
     const line = nameToken ? nameToken.startLine : 0;
+    const bodyEvents = ctx.methodBody[0] ? extractBodyEvents(ctx.methodBody[0]) : [];
 
-    current.methods.push({ name, annotations, line });
-    // Deliberately never visits ctx.methodBody — statement-level detail
-    // isn't part of the Java Semantic Model (ADR-006).
+    current.methods.push({ name, annotations, line, bodyEvents });
+    // Deliberately never calls this.visit(ctx.methodBody) — body events are
+    // extracted directly by extract-body-events.ts, a separate, bounded
+    // walk (see docs/sprints/SPRINT-5.md), not through the class-level
+    // visitor (which only cares about type/method declarations).
   }
 }
 

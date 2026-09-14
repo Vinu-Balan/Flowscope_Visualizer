@@ -37,18 +37,33 @@ importers:
       '@electron-toolkit/utils':
         specifier: ^3.0.0
         version: 3.0.0(electron@33.4.11)
+      '@flowscope/business-analyzer':
+        specifier: workspace:*
+        version: link:../../packages/business-analyzer
       '@flowscope/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@flowscope/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@flowscope/graph-engine':
+        specifier: workspace:*
+        version: link:../../packages/graph-engine
+      '@flowscope/graph-schema':
+        specifier: workspace:*
+        version: link:../../packages/graph-schema
       '@flowscope/ipc':
         specifier: workspace:*
         version: link:../../packages/ipc
       '@flowscope/logging':
         specifier: workspace:*
         version: link:../../packages/logging
+      '@flowscope/parser-java':
+        specifier: workspace:*
+        version: link:../../packages/parser-java
+      '@flowscope/parser-spring':
+        specifier: workspace:*
+        version: link:../../packages/parser-spring
       '@flowscope/scanner':
         specifier: workspace:*
         version: link:../../packages/scanner
@@ -120,7 +135,20 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.2)(jsdom@25.0.1)
 
-  packages/business-analyzer: {}
+  packages/business-analyzer:
+    dependencies:
+      '@flowscope/core':
+        specifier: workspace:*
+        version: link:../core
+      '@flowscope/graph-schema':
+        specifier: workspace:*
+        version: link:../graph-schema
+      '@flowscope/parser-java':
+        specifier: workspace:*
+        version: link:../parser-java
+      '@flowscope/parser-spring':
+        specifier: workspace:*
+        version: link:../parser-spring
 
   packages/config:
     dependencies:
@@ -136,9 +164,23 @@ importers:
 
   packages/core: {}
 
-  packages/graph-engine: {}
+  packages/graph-engine:
+    dependencies:
+      '@flowscope/business-analyzer':
+        specifier: workspace:*
+        version: link:../business-analyzer
+      '@flowscope/core':
+        specifier: workspace:*
+        version: link:../core
+      '@flowscope/graph-schema':
+        specifier: workspace:*
+        version: link:../graph-schema
 
-  packages/graph-schema: {}
+  packages/graph-schema:
+    dependencies:
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
 
   packages/ipc:
     dependencies:
@@ -148,6 +190,9 @@ importers:
       '@flowscope/core':
         specifier: workspace:*
         version: link:../core
+      '@flowscope/graph-schema':
+        specifier: workspace:*
+        version: link:../graph-schema
       '@flowscope/parser-spring':
         specifier: workspace:*
         version: link:../parser-spring

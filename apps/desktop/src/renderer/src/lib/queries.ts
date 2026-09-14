@@ -1,4 +1,5 @@
 import type { Settings, SettingsUpdate } from '@flowscope/config';
+import type { DiscoveredApi } from '@flowscope/parser-spring/api';
 import type { ProjectScanResult } from '@flowscope/scanner/scan-result';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getFlowScopeApi } from './ipc-client';
@@ -8,6 +9,8 @@ export const queryKeys = {
   settings: ['settings'] as const,
   projectScan: (projectPath: string) => ['project-scan', projectPath] as const,
   projectDiscoverApis: (projectPath: string) => ['project-discover-apis', projectPath] as const,
+  projectInferBusinessFlow: (projectPath: string, apiId: string) =>
+    ['project-infer-business-flow', projectPath, apiId] as const,
 };
 
 /** Confirms the main process is up — surfaced in the status bar. */
@@ -114,6 +117,47 @@ export function useDiscoverApisQuery(projectPath: string | undefined) {
       return response.result;
     },
     enabled: false,
+    retry: false,
+  });
+}
+
+/**
+ * Infers the business flow for one selected API (docs/sprints/SPRINT-5.md).
+ * Unlike the scan/discovery queries above, there's no separate "Analyze"
+ * button driving this one — selecting an API in the sidebar *is* the
+ * trigger, so this auto-fetches via `enabled` whenever `api` changes
+ * (TanStack Query re-runs a query automatically when its key changes),
+ * rather than the manual `refetch()` pattern.
+ */
+export function useInferBusinessFlowQuery(
+  projectPath: string | undefined,
+  api: DiscoveredApi | undefined,
+) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: queryKeys.projectInferBusinessFlow(projectPath ?? '', api?.id ?? ''),
+    queryFn: async () => {
+      if (!api) {
+        throw new Error('No API selected.');
+      }
+      const scanResult = queryClient.getQueryData<ProjectScanResult>(
+        queryKeys.projectScan(projectPath ?? ''),
+      );
+      const javaFileRelativePaths = (scanResult?.javaFiles ?? [])
+        .filter((file) => file.sourceSet !== 'test')
+        .map((file) => file.path);
+
+      const response = await getFlowScopeApi().inferBusinessFlow(
+        projectPath ?? '',
+        javaFileRelativePaths,
+        api,
+      );
+      if (response.status === 'error') {
+        throw new Error(response.message);
+      }
+      return response.result;
+    },
+    enabled: Boolean(projectPath) && Boolean(api),
     retry: false,
   });
 }

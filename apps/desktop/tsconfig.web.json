@@ -14,6 +14,7 @@
       "@flowscope/scanner": ["../../packages/scanner/src/index.ts"],
       "@flowscope/scanner/*": ["../../packages/scanner/src/*"],
       "@flowscope/parser-spring/api": ["../../packages/parser-spring/src/api.ts"],
+      "@flowscope/graph-schema": ["../../packages/graph-schema/src/index.ts"],
       "@renderer/*": ["./src/renderer/src/*"]
     }
   },

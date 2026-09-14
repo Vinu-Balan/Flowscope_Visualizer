@@ -3,6 +3,8 @@ import {
   IPC_CHANNELS,
   ProjectDiscoverApisRequestSchema,
   ProjectDiscoverApisResponseSchema,
+  ProjectInferBusinessFlowRequestSchema,
+  ProjectInferBusinessFlowResponseSchema,
   ProjectOpenResponseSchema,
   ProjectScanRequestSchema,
   ProjectScanResponseSchema,
@@ -14,10 +16,12 @@ import {
   SystemPingResponseSchema,
   parseOrThrow,
   type ProjectDiscoverApisResponse,
+  type ProjectInferBusinessFlowResponse,
   type ProjectOpenResponse,
   type ProjectScanResponse,
   type SystemPingResponse,
 } from '@flowscope/ipc';
+import type { DiscoveredApi } from '@flowscope/parser-spring/api';
 import type { ProjectValidationResult } from '@flowscope/workspace/project';
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -84,6 +88,23 @@ const flowscopeApi = {
     const raw: unknown = await ipcRenderer.invoke(IPC_CHANNELS.projectDiscoverApis, request);
     return parseOrThrow(ProjectDiscoverApisResponseSchema, raw, {
       channel: IPC_CHANNELS.projectDiscoverApis,
+      direction: 'response',
+    });
+  },
+
+  async inferBusinessFlow(
+    path: string,
+    javaFileRelativePaths: readonly string[],
+    api: DiscoveredApi,
+  ): Promise<ProjectInferBusinessFlowResponse> {
+    const request = parseOrThrow(
+      ProjectInferBusinessFlowRequestSchema,
+      { path, javaFileRelativePaths, api },
+      { channel: IPC_CHANNELS.projectInferBusinessFlow, direction: 'request' },
+    );
+    const raw: unknown = await ipcRenderer.invoke(IPC_CHANNELS.projectInferBusinessFlow, request);
+    return parseOrThrow(ProjectInferBusinessFlowResponseSchema, raw, {
+      channel: IPC_CHANNELS.projectInferBusinessFlow,
       direction: 'response',
     });
   },

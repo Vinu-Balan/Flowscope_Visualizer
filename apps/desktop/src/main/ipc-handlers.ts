@@ -1,9 +1,13 @@
+import { inferBusinessFlow } from '@flowscope/business-analyzer';
 import type { SettingsStore } from '@flowscope/config';
 import { withRecentProject } from '@flowscope/config';
+import { buildGraph } from '@flowscope/graph-engine';
 import {
   IPC_CHANNELS,
   ProjectDiscoverApisRequestSchema,
   ProjectDiscoverApisResponseSchema,
+  ProjectInferBusinessFlowRequestSchema,
+  ProjectInferBusinessFlowResponseSchema,
   ProjectOpenResponseSchema,
   ProjectScanRequestSchema,
   ProjectScanResponseSchema,
@@ -16,6 +20,7 @@ import {
   parseOrThrow,
 } from '@flowscope/ipc';
 import type { Logger } from '@flowscope/logging';
+import { parseJavaFiles } from '@flowscope/parser-java';
 import { discoverApis } from '@flowscope/parser-spring';
 import { scanProject } from '@flowscope/scanner';
 import { validateProject } from '@flowscope/workspace';
@@ -184,6 +189,63 @@ export function registerIpcHandlers({
       ProjectDiscoverApisResponseSchema,
       { status: 'success', result: result.value },
       { channel: IPC_CHANNELS.projectDiscoverApis, direction: 'response' },
+    );
+  });
+
+  ipcMain.handle(IPC_CHANNELS.projectInferBusinessFlow, async (_event, rawRequest: unknown) => {
+    const request = parseOrThrow(ProjectInferBusinessFlowRequestSchema, rawRequest, {
+      channel: IPC_CHANNELS.projectInferBusinessFlow,
+      direction: 'request',
+    });
+
+    const parsed = await parseJavaFiles(request.path, request.javaFileRelativePaths);
+    if (!parsed.ok) {
+      log.warn('project.inferBusinessFlow failed to parse project files', {
+        path: request.path,
+        error: parsed.error.toJSON(),
+      });
+      return parseOrThrow(
+        ProjectInferBusinessFlowResponseSchema,
+        { status: 'error', message: parsed.error.message },
+        { channel: IPC_CHANNELS.projectInferBusinessFlow, direction: 'response' },
+      );
+    }
+
+    const flow = inferBusinessFlow(request.api, parsed.value.files);
+    if (!flow.ok) {
+      log.warn('project.inferBusinessFlow could not locate the API entry point', {
+        apiId: request.api.id,
+        error: flow.error.toJSON(),
+      });
+      return parseOrThrow(
+        ProjectInferBusinessFlowResponseSchema,
+        { status: 'error', message: flow.error.message },
+        { channel: IPC_CHANNELS.projectInferBusinessFlow, direction: 'response' },
+      );
+    }
+
+    const graph = buildGraph(flow.value);
+    if (!graph.ok) {
+      log.error('project.inferBusinessFlow built an invalid graph', {
+        apiId: request.api.id,
+        error: graph.error.toJSON(),
+      });
+      return parseOrThrow(
+        ProjectInferBusinessFlowResponseSchema,
+        { status: 'error', message: graph.error.message },
+        { channel: IPC_CHANNELS.projectInferBusinessFlow, direction: 'response' },
+      );
+    }
+
+    log.info('project.inferBusinessFlow completed', {
+      apiId: request.api.id,
+      steps: flow.value.steps.length,
+    });
+
+    return parseOrThrow(
+      ProjectInferBusinessFlowResponseSchema,
+      { status: 'success', result: graph.value },
+      { channel: IPC_CHANNELS.projectInferBusinessFlow, direction: 'response' },
     );
   });
 

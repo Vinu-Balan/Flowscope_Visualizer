@@ -128,6 +128,55 @@ describe('IPC_CONTRACT', () => {
     expect(contract.response.safeParse({ status: 'error' }).success).toBe(false);
   });
 
+  it('project.inferBusinessFlow request requires a path, relative paths, and a well-formed api', () => {
+    const contract = IPC_CONTRACT[IPC_CHANNELS.projectInferBusinessFlow];
+    const api = {
+      id: 'POST /customers#A.java:register',
+      httpMethod: 'POST',
+      path: '/customers',
+      className: 'CustomerController',
+      methodName: 'register',
+      file: 'A.java',
+      line: 22,
+    };
+    expect(
+      contract.request.safeParse({ path: '/tmp/demo', javaFileRelativePaths: ['A.java'], api })
+        .success,
+    ).toBe(true);
+    expect(
+      contract.request.safeParse({ path: '/tmp/demo', javaFileRelativePaths: [] }).success,
+    ).toBe(false);
+    expect(
+      contract.request.safeParse({ path: '', javaFileRelativePaths: ['A.java'], api }).success,
+    ).toBe(false);
+  });
+
+  it('project.inferBusinessFlow response accepts both success and error outcomes', () => {
+    const contract = IPC_CONTRACT[IPC_CHANNELS.projectInferBusinessFlow];
+    expect(
+      contract.response.safeParse({
+        status: 'success',
+        result: {
+          id: 'api1',
+          apiId: 'api1',
+          nodes: [
+            {
+              id: 'step-1',
+              type: 'business-step',
+              businessName: 'Register Customer',
+              businessDescription: 'Registers a new customer.',
+              confidence: 0.85,
+              technicalName: 'CustomerController.register()',
+            },
+          ],
+          edges: [],
+        },
+      }).success,
+    ).toBe(true);
+    expect(contract.response.safeParse({ status: 'error', message: 'boom' }).success).toBe(true);
+    expect(contract.response.safeParse({ status: 'error' }).success).toBe(false);
+  });
+
   it('settings.get response is the full Settings shape', () => {
     const contract = IPC_CONTRACT[IPC_CHANNELS.settingsGet];
     expect(contract.response.safeParse(DEFAULT_SETTINGS).success).toBe(true);

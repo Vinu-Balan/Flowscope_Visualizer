@@ -21,7 +21,7 @@ describe('parseJavaFile', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.types).toEqual([
-      { name: 'Foo', kind: 'class', annotations: [], methods: [], line: 2 },
+      { name: 'Foo', kind: 'class', annotations: [], methods: [], fields: [], line: 2 },
     ]);
   });
 

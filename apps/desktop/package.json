@@ -16,8 +16,11 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
+    "@flowscope/business-analyzer": "workspace:*",
     "@flowscope/config": "workspace:*",
     "@flowscope/core": "workspace:*",
+    "@flowscope/graph-engine": "workspace:*",
+    "@flowscope/graph-schema": "workspace:*",
     "@flowscope/ipc": "workspace:*",
     "@flowscope/logging": "workspace:*",
     "@flowscope/parser-java": "workspace:*",

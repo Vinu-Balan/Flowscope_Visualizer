@@ -43,7 +43,7 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
 2. Project opening (`SPRINT-2.md`) — complete
 3. Project scanner (`SPRINT-3.md`) — complete
 4. API discovery (`SPRINT-4.md`) — complete
-5. Business flow engine
+5. Business flow engine (`SPRINT-5.md`) — complete
 6. Graph visualization
 7. Inspector
 8. Code navigation
@@ -64,7 +64,7 @@ added as later sprints need what they specifically exercise.
 
 - [x] A real Spring Boot project can be opened and analyzed without errors.
 - [x] Discovered APIs appear in the Architecture sidebar.
-- [ ] Selecting an API renders a business-level flow the user can read
+- [x] Selecting an API renders a business-level flow the user can read
       without Spring knowledge.
 - [ ] Selecting a node opens an Inspector with business + technical detail
       and a working "Open Source" jump to the exact file/line in Monaco.
@@ -78,9 +78,13 @@ added as later sprints need what they specifically exercise.
 
 In progress. SPRINT-1 (desktop foundation), SPRINT-2 (project opening —
 real Maven/Gradle validation), SPRINT-3 (project scanner — Java/resource
-file discovery, surfaced in the Architecture sidebar), and SPRINT-4 (API
+file discovery, surfaced in the Architecture sidebar), SPRINT-4 (API
 discovery — real Java parsing via `packages/parser-java`, Spring MVC
 endpoint discovery via `packages/parser-spring`, both surfaced in a
-clickable Architecture sidebar list) are complete and verified. Business
-flows, the Inspector, and source navigation all depend on SPRINT-5 onward
-and have not started.
+clickable Architecture sidebar list), and SPRINT-5 (business flow engine —
+`packages/business-analyzer` infers a confidence-scored business flow per
+API, `packages/graph-engine`/`packages/graph-schema` assemble and validate
+the BEG, rendered as a step list in the center canvas) are complete and
+verified. The Inspector and source navigation depend on SPRINT-6/7 onward
+and have not started; the interactive graph canvas itself (replacing
+SPRINT-5's step list) is SPRINT-6.

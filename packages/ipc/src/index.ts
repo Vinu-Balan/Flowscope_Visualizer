@@ -11,6 +11,8 @@ export {
   DiscoverApisResultSchema,
   ProjectDiscoverApisRequestSchema,
   ProjectDiscoverApisResponseSchema,
+  ProjectInferBusinessFlowRequestSchema,
+  ProjectInferBusinessFlowResponseSchema,
   ProjectOpenRequestSchema,
   ProjectOpenResponseSchema,
   ProjectScanRequestSchema,
@@ -20,6 +22,7 @@ export {
 } from './contracts/project';
 export type {
   ProjectDiscoverApisResponse,
+  ProjectInferBusinessFlowResponse,
   ProjectOpenResponse,
   ProjectScanResponse,
 } from './contracts/project';

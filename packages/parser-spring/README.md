@@ -22,7 +22,10 @@ Publishes two entry points, like `packages/config`/`packages/workspace`/
 `packages/scanner`: `@flowscope/parser-spring` (the full barrel, including
 the Node-only `discoverApis`) and `@flowscope/parser-spring/api` (the zod
 schema for `DiscoveredApi`, Node-free — safe for the sandboxed preload
-script). See the comment atop `src/api.ts`.
+script). See the comment atop `src/api.ts`. `discoverApis` itself is a
+thin wrapper around `packages/parser-java`'s `parseJavaFiles` (Sprint 5
+extracted the shared read+parse+resilience loop there once
+`packages/business-analyzer` needed the same project-wide parsing).
 
 **Status:** implemented (REST endpoint discovery) — see
 `docs/sprints/SPRINT-4.md` / Weekend 4.

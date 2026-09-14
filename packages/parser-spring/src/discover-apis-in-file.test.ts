@@ -1,4 +1,4 @@
-import type { JavaAnnotation, JavaSourceFile, JavaType } from '@flowscope/parser-java';
+import type { JavaAnnotation, JavaMethod, JavaSourceFile, JavaType } from '@flowscope/parser-java';
 import { describe, expect, it } from 'vitest';
 import { discoverApisInFile } from './discover-apis-in-file';
 
@@ -10,8 +10,12 @@ function annotation(
   return { name, stringArguments, identifierArguments };
 }
 
+function method(overrides: Partial<JavaMethod> & Pick<JavaMethod, 'name'>): JavaMethod {
+  return { annotations: [], line: 1, bodyEvents: [], ...overrides };
+}
+
 function javaType(overrides: Partial<JavaType> & Pick<JavaType, 'name'>): JavaType {
-  return { kind: 'class', annotations: [], methods: [], line: 1, ...overrides };
+  return { kind: 'class', annotations: [], methods: [], fields: [], line: 1, ...overrides };
 }
 
 function sourceFile(types: JavaType[]): JavaSourceFile {
@@ -25,7 +29,11 @@ describe('discoverApisInFile', () => {
         name: 'PlainService',
         annotations: [annotation('Service')],
         methods: [
-          { name: 'doWork', annotations: [annotation('GetMapping', { value: '/x' })], line: 5 },
+          method({
+            name: 'doWork',
+            annotations: [annotation('GetMapping', { value: '/x' })],
+            line: 5,
+          }),
         ],
       }),
     ]);
@@ -41,12 +49,12 @@ describe('discoverApisInFile', () => {
           annotation('RequestMapping', { value: '/customers' }),
         ],
         methods: [
-          { name: 'register', annotations: [annotation('PostMapping')], line: 10 },
-          {
+          method({ name: 'register', annotations: [annotation('PostMapping')], line: 10 }),
+          method({
             name: 'findById',
             annotations: [annotation('GetMapping', { value: '/{id}' })],
             line: 15,
-          },
+          }),
         ],
       }),
     ]);
@@ -79,7 +87,11 @@ describe('discoverApisInFile', () => {
         name: 'ViewController',
         annotations: [annotation('Controller')],
         methods: [
-          { name: 'home', annotations: [annotation('GetMapping', { value: '/home' })], line: 3 },
+          method({
+            name: 'home',
+            annotations: [annotation('GetMapping', { value: '/home' })],
+            line: 3,
+          }),
         ],
       }),
     ]);
@@ -92,7 +104,7 @@ describe('discoverApisInFile', () => {
         name: 'OrderController',
         annotations: [annotation('RestController')],
         methods: [
-          {
+          method({
             name: 'create',
             annotations: [
               annotation(
@@ -102,7 +114,7 @@ describe('discoverApisInFile', () => {
               ),
             ],
             line: 8,
-          },
+          }),
         ],
       }),
     ]);
@@ -126,7 +138,7 @@ describe('discoverApisInFile', () => {
         name: 'OrderController',
         annotations: [annotation('RestController')],
         methods: [
-          {
+          method({
             name: 'get',
             annotations: [
               annotation(
@@ -136,7 +148,7 @@ describe('discoverApisInFile', () => {
               ),
             ],
             line: 12,
-          },
+          }),
         ],
       }),
     ]);
@@ -153,7 +165,11 @@ describe('discoverApisInFile', () => {
         name: 'AmbiguousController',
         annotations: [annotation('RestController')],
         methods: [
-          { name: 'any', annotations: [annotation('RequestMapping', { value: '/x' })], line: 4 },
+          method({
+            name: 'any',
+            annotations: [annotation('RequestMapping', { value: '/x' })],
+            line: 4,
+          }),
         ],
       }),
     ]);
@@ -166,7 +182,11 @@ describe('discoverApisInFile', () => {
         name: 'RootController',
         annotations: [annotation('RestController')],
         methods: [
-          { name: 'ping', annotations: [annotation('GetMapping', { value: '/ping' })], line: 2 },
+          method({
+            name: 'ping',
+            annotations: [annotation('GetMapping', { value: '/ping' })],
+            line: 2,
+          }),
         ],
       }),
     ]);
@@ -178,12 +198,12 @@ describe('discoverApisInFile', () => {
       javaType({
         name: 'A',
         annotations: [annotation('RestController'), annotation('RequestMapping', { value: '/a' })],
-        methods: [{ name: 'listA', annotations: [annotation('GetMapping')], line: 1 }],
+        methods: [method({ name: 'listA', annotations: [annotation('GetMapping')], line: 1 })],
       }),
       javaType({
         name: 'B',
         annotations: [annotation('RestController'), annotation('RequestMapping', { value: '/b' })],
-        methods: [{ name: 'listB', annotations: [annotation('GetMapping')], line: 1 }],
+        methods: [method({ name: 'listB', annotations: [annotation('GetMapping')], line: 1 })],
       }),
     ]);
     const apis = discoverApisInFile(model, 'Multi.java');

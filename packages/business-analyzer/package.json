@@ -4,5 +4,20 @@
   "private": true,
   "description": "Business Semantic Model inference: turns technical semantic models into business-meaningful steps with confidence scoring.",
   "license": "UNLICENSED",
-  "type": "module"
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@flowscope/core": "workspace:*",
+    "@flowscope/graph-schema": "workspace:*",
+    "@flowscope/parser-java": "workspace:*",
+    "@flowscope/parser-spring": "workspace:*"
+  }
 }

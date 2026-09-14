@@ -3,6 +3,8 @@ import { IPC_CHANNELS } from './channels';
 import {
   ProjectDiscoverApisRequestSchema,
   ProjectDiscoverApisResponseSchema,
+  ProjectInferBusinessFlowRequestSchema,
+  ProjectInferBusinessFlowResponseSchema,
   ProjectOpenRequestSchema,
   ProjectOpenResponseSchema,
   ProjectScanRequestSchema,
@@ -44,6 +46,10 @@ export const IPC_CONTRACT = {
   [IPC_CHANNELS.projectDiscoverApis]: {
     request: ProjectDiscoverApisRequestSchema,
     response: ProjectDiscoverApisResponseSchema,
+  },
+  [IPC_CHANNELS.projectInferBusinessFlow]: {
+    request: ProjectInferBusinessFlowRequestSchema,
+    response: ProjectInferBusinessFlowResponseSchema,
   },
   [IPC_CHANNELS.settingsGet]: {
     request: SettingsGetRequestSchema,

@@ -73,23 +73,30 @@ project.
 
 ## Current status
 
-**Weekends 1–4 (Desktop foundation, Project opening, Project scanner, API
-discovery) complete** — see `docs/sprints/SPRINT-1.md` through
-`SPRINT-4.md`. FlowScope launches as a real Electron desktop app:
+**Weekends 1–5 (Desktop foundation, Project opening, Project scanner, API
+discovery, Business flow engine) complete** — see `docs/sprints/SPRINT-1.md`
+through `SPRINT-5.md`. FlowScope launches as a real Electron desktop app:
 Welcome/Workspace routes, resizable three-pane workspace shell, command
 palette, settings dialog, theme system, and a working IPC contract (ping,
 project-open dialog, project validation, project scanning, API discovery,
-settings get/update). Opening a project runs real Maven/Gradle validation
-(`packages/workspace`) with a Recent Projects list; clicking Analyze (or
-Ctrl/Cmd+Shift+A) walks the project's file tree (`packages/scanner`), then
-parses its Java files (`packages/parser-java`, ADR-006) and discovers
-Spring MVC REST endpoints (`packages/parser-spring`) — both now shown in
-the Architecture sidebar, with a real Java/resource file count and a
-clickable, method-badged list of discovered APIs. All backed by tested
-`packages/core`, `packages/logging`, `packages/config`, `packages/ipc`,
-`packages/workspace`, `packages/scanner`, `packages/parser-java`,
-`packages/parser-spring`, and `packages/ui`, plus the first real test
-fixture (`tests/fixtures/simple-customer-service`).
-Business flow inference — turning a selected API into an actual flow
-diagram, rather than just acknowledging the selection — begins at Weekend
-5 (`docs/sprints/SPRINT-5.md`, not yet written).
+business flow inference, settings get/update). Opening a project runs real
+Maven/Gradle validation (`packages/workspace`) with a Recent Projects list;
+clicking Analyze (or Ctrl/Cmd+Shift+A) walks the project's file tree
+(`packages/scanner`), parses its Java files (`packages/parser-java`,
+ADR-006), and discovers Spring MVC REST endpoints (`packages/parser-spring`)
+— shown in the Architecture sidebar as a clickable, method-badged API list.
+Selecting an API now infers and shows its real business flow
+(`packages/business-analyzer` + `packages/graph-engine` +
+`packages/graph-schema`): a confidence-scored, ordered list of steps —
+decisions, validations, database operations, transformations, errors, and
+responses — inferred from the method's actual call graph, one level of
+same-project method calls deep, never presented as certain. All backed by
+tested `packages/core`, `packages/logging`, `packages/config`,
+`packages/ipc`, `packages/workspace`, `packages/scanner`,
+`packages/parser-java`, `packages/parser-spring`, `packages/graph-schema`,
+`packages/graph-engine`, `packages/business-analyzer`, and `packages/ui`,
+plus the first real test fixture (`tests/fixtures/simple-customer-service`).
+The flow renders as a simple step list, not yet an interactive graph — that
+starts at Weekend 6 (`docs/sprints/SPRINT-6.md`, not yet written), which
+replaces the list with the real Cytoscape/ELK canvas without changing the
+underlying BEG.

@@ -15,7 +15,10 @@
       "@flowscope/scanner/*": ["../../packages/scanner/src/*"],
       "@flowscope/parser-java": ["../../packages/parser-java/src/index.ts"],
       "@flowscope/parser-spring": ["../../packages/parser-spring/src/index.ts"],
-      "@flowscope/parser-spring/*": ["../../packages/parser-spring/src/*"]
+      "@flowscope/parser-spring/*": ["../../packages/parser-spring/src/*"],
+      "@flowscope/graph-schema": ["../../packages/graph-schema/src/index.ts"],
+      "@flowscope/graph-engine": ["../../packages/graph-engine/src/index.ts"],
+      "@flowscope/business-analyzer": ["../../packages/business-analyzer/src/index.ts"]
     }
   },
   "include": ["src/main/**/*", "src/preload/**/*"]

@@ -2,6 +2,7 @@
 // root barrels also export a Node-only implementation (node:fs), which
 // must never end up in the preload/renderer bundle. See the comments atop
 // packages/workspace/src/project.ts and packages/scanner/src/scan-result.ts.
+import { BegGraphSchema } from '@flowscope/graph-schema';
 import { DiscoveredApiSchema } from '@flowscope/parser-spring/api';
 import { ProjectScanResultSchema } from '@flowscope/scanner/scan-result';
 import { ProjectValidationResultSchema } from '@flowscope/workspace/project';
@@ -65,3 +66,26 @@ export const ProjectDiscoverApisResponseSchema = z.discriminatedUnion('status', 
   z.object({ status: z.literal('error'), message: z.string().min(1) }),
 ]);
 export type ProjectDiscoverApisResponse = z.infer<typeof ProjectDiscoverApisResponseSchema>;
+
+/**
+ * Infers a business flow for one previously-discovered API (docs/sprints/SPRINT-5.md).
+ * `api` is the full `DiscoveredApi` the renderer already has cached from a
+ * prior `project.discoverApis` call — re-sent here rather than re-looked-up
+ * by id, since the main process doesn't keep discovery results between
+ * requests. `javaFileRelativePaths` is the same `main`/`other` source-set
+ * file list `project.discoverApis` takes, so the entry method's own
+ * project (and whatever same-project bean it calls) can be re-parsed.
+ */
+export const ProjectInferBusinessFlowRequestSchema = z.object({
+  path: z.string().min(1),
+  javaFileRelativePaths: z.array(z.string().min(1)),
+  api: DiscoveredApiSchema,
+});
+
+export const ProjectInferBusinessFlowResponseSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('success'), result: BegGraphSchema }),
+  z.object({ status: z.literal('error'), message: z.string().min(1) }),
+]);
+export type ProjectInferBusinessFlowResponse = z.infer<
+  typeof ProjectInferBusinessFlowResponseSchema
+>;

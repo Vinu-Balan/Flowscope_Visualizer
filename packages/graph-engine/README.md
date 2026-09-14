@@ -8,8 +8,16 @@ for the required checks), querying, and — critically — projecting one BEG
 into the business/developer/technical detail levels (`MASTER_PLAN.md` §6)
 at read time, without regenerating the graph.
 
-Depends on `packages/graph-schema` and `packages/core` only. Must never
-depend on Spring, Electron, or React (`docs/ARCHITECTURE.md`).
+Implements `buildGraph(flow: BusinessFlow): Result<BegGraph, GraphBuildError>`
+— assembles and validates a BEG from `packages/business-analyzer`'s
+inferred step sequence, and `projectGraph(graph, level)` — the
+business/developer/technical label projection described above. Only
+`projectGraph` is exercised so far; nothing in `apps/desktop` switches
+detail levels yet (that's Sprint 6/7's UI work), but the underlying
+contract is real and tested now.
 
-**Status:** not yet implemented — see `docs/sprints/SPRINT-1.md` /
-Weekend 5–6.
+Depends on `packages/graph-schema`, `packages/business-analyzer` (for the
+`BusinessFlow` input type), and `packages/core`. Must never depend on
+Spring, Electron, or React (`docs/ARCHITECTURE.md`).
+
+**Status:** implemented — see `docs/sprints/SPRINT-5.md` / Weekend 5.

@@ -21,6 +21,9 @@ const WORKSPACE_PACKAGES = [
   'scanner',
   'parser-java',
   'parser-spring',
+  'graph-schema',
+  'graph-engine',
+  'business-analyzer',
 ] as const;
 
 function workspaceAliases(): Record<string, string> {

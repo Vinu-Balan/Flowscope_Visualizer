@@ -17,6 +17,7 @@
   "dependencies": {
     "@flowscope/config": "workspace:*",
     "@flowscope/core": "workspace:*",
+    "@flowscope/graph-schema": "workspace:*",
     "@flowscope/parser-spring": "workspace:*",
     "@flowscope/scanner": "workspace:*",
     "@flowscope/workspace": "workspace:*",

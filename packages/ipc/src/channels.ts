@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
   projectValidate: 'project.validate',
   projectScan: 'project.scan',
   projectDiscoverApis: 'project.discoverApis',
+  projectInferBusinessFlow: 'project.inferBusinessFlow',
   settingsGet: 'settings.get',
   settingsUpdate: 'settings.update',
 } as const;
