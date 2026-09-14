@@ -15,8 +15,13 @@
       "@flowscope/scanner/*": ["../../packages/scanner/src/*"],
       "@flowscope/parser-spring/api": ["../../packages/parser-spring/src/api.ts"],
       "@flowscope/graph-schema": ["../../packages/graph-schema/src/index.ts"],
+      "@flowscope/visualization": ["../../packages/visualization/src/index.ts"],
       "@renderer/*": ["./src/renderer/src/*"]
     }
   },
-  "include": ["src/renderer/src/**/*", "src/preload/*.d.ts"]
+  "include": [
+    "src/renderer/src/**/*",
+    "src/preload/*.d.ts",
+    "../../packages/visualization/src/cytoscape-elk.d.ts"
+  ]
 }

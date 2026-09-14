@@ -27,6 +27,7 @@
     "@flowscope/parser-spring": "workspace:*",
     "@flowscope/scanner": "workspace:*",
     "@flowscope/ui": "workspace:*",
+    "@flowscope/visualization": "workspace:*",
     "@flowscope/workspace": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "@tanstack/react-router": "^1.92.0",

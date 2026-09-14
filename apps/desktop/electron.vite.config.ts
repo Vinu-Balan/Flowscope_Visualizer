@@ -24,6 +24,7 @@ const WORKSPACE_PACKAGES = [
   'graph-schema',
   'graph-engine',
   'business-analyzer',
+  'visualization',
 ] as const;
 
 function workspaceAliases(): Record<string, string> {

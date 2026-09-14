@@ -16,16 +16,25 @@ export interface BusinessStep {
   readonly confidence: number;
   readonly technicalName: string;
   readonly source: BegSourceLocation;
-  /**
-   * How this step connects from the previous one in the flow —
-   * `'sequence'` for the happy path, `'error'` for a decision's
-   * rejected/alternate outcome (docs/sprints/SPRINT-5.md). Ignored for
-   * the first step, which has no incoming edge.
-   */
-  readonly incomingEdgeType: BegEdgeType;
+}
+
+/**
+ * An explicit control-flow edge between two steps — a decision step has
+ * two of these (its guard-clause outcome and the branch that resumes
+ * normal flow), not one, so the flow is a real branching graph rather
+ * than a flattened list (docs/sprints/SPRINT-6.md).
+ */
+export interface BusinessFlowEdge {
+  readonly id: string;
+  readonly from: string;
+  readonly to: string;
+  readonly type: BegEdgeType;
+  /** A short, human label for a decision's branch — "Yes" / "No" — absent on a plain sequential edge. */
+  readonly label?: string;
 }
 
 export interface BusinessFlow {
   readonly apiId: string;
   readonly steps: readonly BusinessStep[];
+  readonly edges: readonly BusinessFlowEdge[];
 }

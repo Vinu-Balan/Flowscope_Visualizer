@@ -4,11 +4,13 @@ import { validateGraph, type BegEdge, type BegGraph, type BegNode } from '@flows
 
 /**
  * Assembles a validated BEG from `packages/business-analyzer`'s inferred
- * step sequence (docs/architecture/analysis-pipeline.md's `GraphBuilder` +
- * `GraphValidator` stages, combined — Sprint 5's flows are always a
- * straight-line sequence, so there's no separate "graph assembly" step
- * worth splitting out yet). Each consecutive pair of steps becomes one
- * edge, typed by the *later* step's `incomingEdgeType`.
+ * flow (docs/architecture/analysis-pipeline.md's `GraphBuilder` +
+ * `GraphValidator` stages, combined — there's no separate "graph
+ * assembly" step worth splitting out yet). A near-direct translation:
+ * `business-analyzer` already builds the real branching structure (a
+ * decision's two outcomes, not a flattened chain — docs/sprints/SPRINT-6.md),
+ * so this just maps `BusinessStep`/`BusinessFlowEdge` onto `BegNode`/`BegEdge`
+ * one-for-one and validates the result.
  */
 export function buildGraph(flow: BusinessFlow): Result<BegGraph, GraphBuildError> {
   const nodes: BegNode[] = flow.steps.map((step) => ({
@@ -21,20 +23,13 @@ export function buildGraph(flow: BusinessFlow): Result<BegGraph, GraphBuildError
     source: step.source,
   }));
 
-  const edges: BegEdge[] = [];
-  for (let index = 1; index < flow.steps.length; index += 1) {
-    const previous = flow.steps[index - 1];
-    const current = flow.steps[index];
-    if (!previous || !current) {
-      continue;
-    }
-    edges.push({
-      id: `${previous.id}->${current.id}`,
-      from: previous.id,
-      to: current.id,
-      type: current.incomingEdgeType,
-    });
-  }
+  const edges: BegEdge[] = flow.edges.map((edge) => ({
+    id: edge.id,
+    from: edge.from,
+    to: edge.to,
+    type: edge.type,
+    ...(edge.label ? { label: edge.label } : {}),
+  }));
 
   const graph: BegGraph = { id: flow.apiId, apiId: flow.apiId, nodes, edges };
 

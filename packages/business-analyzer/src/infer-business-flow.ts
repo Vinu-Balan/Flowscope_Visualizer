@@ -2,7 +2,7 @@ import { AnalysisError, err, ok, type Result } from '@flowscope/core';
 import type { BegEdgeType, BegSourceLocation } from '@flowscope/graph-schema';
 import type { JavaBodyEvent, JavaMethod, JavaProjectFile, JavaType } from '@flowscope/parser-java';
 import type { DiscoveredApi } from '@flowscope/parser-spring/api';
-import type { BusinessFlow, BusinessStep } from './business-flow';
+import type { BusinessFlow, BusinessFlowEdge, BusinessStep } from './business-flow';
 import {
   describeCall,
   describeConstruct,
@@ -23,12 +23,31 @@ import { buildTypeIndex, type TypeIndexEntry } from './type-index';
  */
 const MAX_INLINE_DEPTH = 1;
 
+interface PendingEdge {
+  readonly type: BegEdgeType;
+  readonly label?: string;
+}
+
+/**
+ * `lastStepId` is "the step whose execution most recently completed on
+ * the branch currently being built" — every new step connects from it.
+ * `nextEdge` is a one-shot override for *that one* connection (a
+ * decision's branch gets `'error'`/`'success'` + a Yes/No label instead
+ * of a plain `'sequence'`); it resets to `'sequence'` after each use. A
+ * decision's guard-clause branch is built by temporarily leaving
+ * `lastStepId` pointed at the decision, then restoring it there
+ * afterward so the branch that resumes normal flow also connects from
+ * the decision, not from the (dead-end) guard outcome — see `handleIf`.
+ */
 interface FlowContext {
   readonly typeIndex: ReadonlyMap<string, TypeIndexEntry>;
   readonly steps: BusinessStep[];
+  readonly edges: BusinessFlowEdge[];
   readonly visited: Set<string>;
-  nextEdgeType: BegEdgeType;
+  lastStepId: string | undefined;
+  nextEdge: PendingEdge;
   stepCount: number;
+  edgeCount: number;
 }
 
 function sourceOf(
@@ -40,24 +59,47 @@ function sourceOf(
   return { file, lineStart: line, lineEnd: line, method: methodName, className };
 }
 
-function pushStep(
+function connect(ctx: FlowContext, from: string, to: string, edge: PendingEdge): void {
+  ctx.edgeCount += 1;
+  ctx.edges.push({
+    id: `edge-${String(ctx.edgeCount)}`,
+    from,
+    to,
+    type: edge.type,
+    ...(edge.label ? { label: edge.label } : {}),
+  });
+}
+
+/**
+ * Creates a step and connects it from `ctx.lastStepId` (if any) using
+ * `ctx.nextEdge`, then advances the cursor to the new step. The one
+ * function every event handler below pushes new steps through, so
+ * branching (see `handleIf`) only has to manipulate `lastStepId`/
+ * `nextEdge` rather than every call site knowing about edges.
+ */
+function addStep(
   ctx: FlowContext,
   description: CallDescription,
   technicalName: string,
   source: BegSourceLocation,
-): void {
+): string {
   ctx.stepCount += 1;
+  const id = `step-${String(ctx.stepCount)}`;
   ctx.steps.push({
-    id: `step-${String(ctx.stepCount)}`,
+    id,
     type: description.type,
     businessName: description.businessName,
     businessDescription: description.businessDescription,
     confidence: description.confidence,
     technicalName,
     source,
-    incomingEdgeType: ctx.nextEdgeType,
   });
-  ctx.nextEdgeType = 'sequence';
+  if (ctx.lastStepId) {
+    connect(ctx, ctx.lastStepId, id, ctx.nextEdge);
+  }
+  ctx.nextEdge = { type: 'sequence' };
+  ctx.lastStepId = id;
+  return id;
 }
 
 interface CallResolution {
@@ -123,7 +165,7 @@ function handleCall(
 
   const description = describeCall(methodName, noun);
   const technicalName = targetName ? `${targetName}.${methodName}(...)` : `${methodName}(...)`;
-  pushStep(
+  addStep(
     ctx,
     description,
     technicalName,
@@ -147,7 +189,7 @@ function handleReturn(
       : event.returnsCallMethod
         ? `return ${event.returnsCallMethod}(...)`
         : 'return ...';
-    pushStep(
+    addStep(
       ctx,
       description,
       technicalName,
@@ -174,7 +216,7 @@ function handleReturn(
 
   const description = describeCall(methodName, noun);
   const technicalName = targetName ? `${targetName}.${methodName}(...)` : `${methodName}(...)`;
-  pushStep(
+  addStep(
     ctx,
     description,
     technicalName,
@@ -182,6 +224,14 @@ function handleReturn(
   );
 }
 
+/**
+ * The one place a real branch gets built: a decision step, followed by
+ * its guard-clause outcome (`throw`/early `return`) wired as one branch,
+ * with the code that resumes normal flow wired as the *other* branch —
+ * both hanging directly off the decision, not off each other, so the
+ * result is an actual diamond, not a flattened chain
+ * (docs/sprints/SPRINT-6.md).
+ */
 function handleIf(
   events: readonly JavaBodyEvent[],
   index: number,
@@ -209,36 +259,44 @@ function handleIf(
   }
 
   const decision = describeDecision(ifEvent.conditionText ?? '', conditionCall, noun);
-  pushStep(
+  const decisionId = addStep(
     ctx,
     decision,
     ifEvent.conditionText || 'if (...)',
     sourceOf(ownerFile, ifEvent.line, method.name, ownerType.name),
   );
 
+  // "Yes" answers the phrased question, not necessarily "the raw Java
+  // condition was true" — see DecisionDescription.affirmativeBranch.
+  const guardLabel = decision.affirmativeBranch === 'guard' ? 'Yes' : 'No';
+  const continueLabel = decision.affirmativeBranch === 'guard' ? 'No' : 'Yes';
+
   if (ifEvent.guardThrows) {
     const throwEvent = events[next];
     if (throwEvent && throwEvent.kind === 'throw') {
-      ctx.nextEdgeType = 'error';
+      ctx.nextEdge = { type: 'error', label: guardLabel };
       const description = describeThrow(throwEvent.exceptionType ?? 'Exception', noun);
-      pushStep(
+      addStep(
         ctx,
         description,
         `throw ${throwEvent.exceptionType ?? 'Exception'}`,
         sourceOf(ownerFile, throwEvent.line, method.name, ownerType.name),
       );
       next += 1;
-      ctx.nextEdgeType = 'conditional';
     }
   } else if (ifEvent.guardReturns) {
     const returnEvent = events[next];
     if (returnEvent && returnEvent.kind === 'return') {
-      ctx.nextEdgeType = 'error';
+      ctx.nextEdge = { type: 'error', label: guardLabel };
       handleReturn(returnEvent, ownerType, ownerFile, method, depth, noun, ctx);
       next += 1;
-      ctx.nextEdgeType = 'conditional';
     }
   }
+
+  // Resume the branch that continues normal flow — from the decision,
+  // discarding wherever the guard branch's cursor ended (it's a dead end).
+  ctx.lastStepId = decisionId;
+  ctx.nextEdge = { type: 'success', label: continueLabel };
 
   return next;
 }
@@ -274,7 +332,7 @@ function unroll(
         event.methodName ?? 'Object',
         Boolean(event.looksGenerated),
       );
-      pushStep(
+      addStep(
         ctx,
         description,
         `new ${event.methodName ?? 'Object'}(...)`,
@@ -285,7 +343,7 @@ function unroll(
     }
     if (event.kind === 'throw') {
       const description = describeThrow(event.exceptionType ?? 'Exception', noun);
-      pushStep(
+      addStep(
         ctx,
         description,
         `throw ${event.exceptionType ?? 'Exception'}`,
@@ -325,6 +383,9 @@ function describeApiEntry(api: DiscoveredApi, noun: string): CallDescription {
 /**
  * Infers a confidence-scored business flow for one discovered API — the
  * whole point of `packages/business-analyzer` (docs/sprints/SPRINT-5.md).
+ * The result is a real branching graph, not a flattened list: a decision
+ * step's guard-clause outcome and its normal-flow continuation both
+ * connect directly from the decision (docs/sprints/SPRINT-6.md).
  * `projectFiles` should be every file `packages/parser-java`'s
  * `parseJavaFiles` could reach (normally the same `main`/`other`
  * source-set files a prior scan/discovery already parsed), so the API's
@@ -356,13 +417,16 @@ export function inferBusinessFlow(
   const ctx: FlowContext = {
     typeIndex: buildTypeIndex(projectFiles),
     steps: [],
+    edges: [],
     visited: new Set([`${entryType.name}#${entryMethod.name}`]),
-    nextEdgeType: 'sequence',
+    lastStepId: undefined,
+    nextEdge: { type: 'sequence' },
     stepCount: 0,
+    edgeCount: 0,
   };
 
   const noun = domainNounFromType(entryType.name);
-  pushStep(
+  addStep(
     ctx,
     describeApiEntry(api, noun),
     `${api.className}.${api.methodName}()`,
@@ -371,5 +435,5 @@ export function inferBusinessFlow(
 
   unroll(entryType, api.file, entryMethod, 0, ctx);
 
-  return ok({ apiId: api.id, steps: ctx.steps });
+  return ok({ apiId: api.id, steps: ctx.steps, edges: ctx.edges });
 }

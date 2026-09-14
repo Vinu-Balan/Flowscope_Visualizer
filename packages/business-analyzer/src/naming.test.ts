@@ -106,7 +106,7 @@ describe('describeThrow / describeConstruct', () => {
 });
 
 describe('describeDecision', () => {
-  it('reframes a resolvable condition call using describeCall', () => {
+  it('reframes a resolvable condition call using describeCall, with the guard branch as "Yes"', () => {
     const result = describeDecision(
       'existsByEmail(...)',
       { targetName: '', methodName: 'existsByEmail' },
@@ -114,16 +114,21 @@ describe('describeDecision', () => {
     );
     expect(result.type).toBe('decision');
     expect(result.businessName).toBe('Check if Customer Exists by Email');
+    expect(result.affirmativeBranch).toBe('guard');
   });
 
-  it('recognizes a null-equality check without a call as "was found"', () => {
+  it('recognizes a null-equality check without a call as "was found", with the guard branch as "No"', () => {
     const result = describeDecision('customer == null', undefined, 'Customer');
     expect(result.businessName).toBe('Check if Customer was Found');
+    // The guard fires when the raw check is true (customer IS null, i.e.
+    // NOT found) — that's "No" to "was it found?", not "Yes".
+    expect(result.affirmativeBranch).toBe('continue');
   });
 
-  it('recognizes a not-null check without a call as "exists"', () => {
+  it('recognizes a not-null check without a call as "exists", with the guard branch as "Yes"', () => {
     const result = describeDecision('customer != null', undefined, 'Customer');
     expect(result.businessName).toBe('Check if Customer Exists');
+    expect(result.affirmativeBranch).toBe('guard');
   });
 
   it('falls back to a low-confidence generic condition description', () => {

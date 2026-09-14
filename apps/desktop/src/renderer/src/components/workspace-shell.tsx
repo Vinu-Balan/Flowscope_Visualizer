@@ -1,9 +1,8 @@
-import { EmptyState } from '@flowscope/ui';
-import { MousePointerClick } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useDiscoverApisQuery } from '../lib/queries';
 import { useAppStore } from '../store/app-store';
 import { BusinessFlowPanel } from './business-flow-panel';
+import { NodeDetailPanel } from './node-detail-panel';
 import { Sidebar } from './sidebar';
 
 const RESIZE_HANDLE_CLASS =
@@ -40,11 +39,7 @@ export function WorkspaceShell() {
       <PanelResizeHandle className={RESIZE_HANDLE_CLASS} />
 
       <Panel defaultSize={22} minSize={16} maxSize={36} className="min-w-0">
-        <EmptyState
-          icon={<MousePointerClick />}
-          title="No node selected"
-          description="Select a step in the business flow to inspect its details here."
-        />
+        <NodeDetailPanel projectPath={currentProject?.path} api={selectedApi} />
       </Panel>
     </PanelGroup>
   );

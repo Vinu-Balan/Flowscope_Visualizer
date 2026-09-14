@@ -70,6 +70,9 @@ importers:
       '@flowscope/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@flowscope/visualization':
+        specifier: workspace:*
+        version: link:../../packages/visualization
       '@flowscope/workspace':
         specifier: workspace:*
         version: link:../../packages/workspace
@@ -298,7 +301,17 @@ importers:
         specifier: ^19.0.0
         version: 19.3.0(react@19.3.0)
 
-  packages/visualization: {}
+  packages/visualization:
+    dependencies:
+      '@flowscope/graph-schema':
+        specifier: workspace:*
+        version: link:../graph-schema
+      cytoscape:
+        specifier: ^3.34.3
+        version: 3.34.3
+      cytoscape-elk:
+        specifier: ^2.3.0
+        version: 2.3.0(cytoscape@3.34.3)
 
   packages/workspace:
     dependencies:
@@ -2233,6 +2246,21 @@ packages:
         integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==,
       }
 
+  cytoscape-elk@2.3.0:
+    resolution:
+      {
+        integrity: sha512-1h2ZmPOy5HD2+mrfF3P2ICxfnDyPCWg/xLVs7fIjTOzdQu51ydrMtm6Sb7KnhFwLBzhGIVYI2Gbns0njggBarQ==,
+      }
+    peerDependencies:
+      cytoscape: ^3.2.0
+
+  cytoscape@3.34.3:
+    resolution:
+      {
+        integrity: sha512-yfYGhRcGAntq6YBD583j4n0Eg3jIxvWmZtz/5uz9UYkeIStSlMxuUja+ec5j3iBD8nv1rwaOAYMW09tBdkSeaQ==,
+      }
+    engines: { node: '>=0.10' }
+
   data-urls@5.0.0:
     resolution:
       {
@@ -2364,6 +2392,12 @@ packages:
       }
     engines: { node: '>= 12.20.55' }
     hasBin: true
+
+  elkjs@0.9.3:
+    resolution:
+      {
+        integrity: sha512-f/ZeWvW/BCXbhGEf1Ujp29EASo/lk1FDnETgNKwJrsVvGZhUWCZyg3xLJjAsxfOmt8KjswHmI5EwCQcPMpOYhQ==,
+      }
 
   end-of-stream@1.4.5:
     resolution:
@@ -5417,6 +5451,13 @@ snapshots:
 
   csstype@3.2.3: {}
 
+  cytoscape-elk@2.3.0(cytoscape@3.34.3):
+    dependencies:
+      cytoscape: 3.34.3
+      elkjs: 0.9.3
+
+  cytoscape@3.34.3: {}
+
   data-urls@5.0.0:
     dependencies:
       whatwg-mimetype: 4.0.0
@@ -5490,6 +5531,8 @@ snapshots:
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
+
+  elkjs@0.9.3: {}
 
   end-of-stream@1.4.5:
     dependencies:

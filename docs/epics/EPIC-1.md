@@ -44,7 +44,7 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
 3. Project scanner (`SPRINT-3.md`) — complete
 4. API discovery (`SPRINT-4.md`) — complete
 5. Business flow engine (`SPRINT-5.md`) — complete
-6. Graph visualization
+6. Graph visualization (`SPRINT-6.md`) — complete
 7. Inspector
 8. Code navigation
 9. Search & UX polish
@@ -81,10 +81,14 @@ real Maven/Gradle validation), SPRINT-3 (project scanner — Java/resource
 file discovery, surfaced in the Architecture sidebar), SPRINT-4 (API
 discovery — real Java parsing via `packages/parser-java`, Spring MVC
 endpoint discovery via `packages/parser-spring`, both surfaced in a
-clickable Architecture sidebar list), and SPRINT-5 (business flow engine —
-`packages/business-analyzer` infers a confidence-scored business flow per
-API, `packages/graph-engine`/`packages/graph-schema` assemble and validate
-the BEG, rendered as a step list in the center canvas) are complete and
-verified. The Inspector and source navigation depend on SPRINT-6/7 onward
-and have not started; the interactive graph canvas itself (replacing
-SPRINT-5's step list) is SPRINT-6.
+clickable Architecture sidebar list), SPRINT-5 (business flow engine —
+`packages/business-analyzer` infers a confidence-scored, branching
+business flow per API, `packages/graph-engine`/`packages/graph-schema`
+assemble and validate the BEG), and SPRINT-6 (graph visualization — the
+BEG now renders as a real interactive flowchart, `packages/visualization`
+via Cytoscape.js + ELK.js: decision diamonds, Yes/No branch edges,
+pan/zoom, click-to-select) are complete and verified. Selecting a node
+already surfaces business + technical detail in the side panel, a partial
+step toward the full Inspector acceptance criterion below — the "Open
+Source" jump to Monaco (source navigation isn't wired in yet) is
+SPRINT-7/8's remaining work.

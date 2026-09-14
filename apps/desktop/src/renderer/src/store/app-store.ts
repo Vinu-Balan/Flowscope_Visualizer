@@ -21,6 +21,10 @@ interface AppState {
   /** The API selected in the Architecture sidebar's discovered-APIs list (docs/sprints/SPRINT-4.md). */
   readonly selectedApiId: string | null;
   setSelectedApiId: (id: string | null) => void;
+
+  /** The graph node selected in the business flow canvas (docs/sprints/SPRINT-6.md). */
+  readonly selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -41,14 +45,19 @@ export const useAppStore = create<AppState>((set) => ({
 
   currentProject: null,
   setCurrentProject: (project) => {
-    set({ currentProject: project, selectedApiId: null });
+    set({ currentProject: project, selectedApiId: null, selectedNodeId: null });
   },
   closeProject: () => {
-    set({ currentProject: null, selectedApiId: null });
+    set({ currentProject: null, selectedApiId: null, selectedNodeId: null });
   },
 
   selectedApiId: null,
   setSelectedApiId: (id) => {
-    set({ selectedApiId: id });
+    set({ selectedApiId: id, selectedNodeId: null });
+  },
+
+  selectedNodeId: null,
+  setSelectedNodeId: (id) => {
+    set({ selectedNodeId: id });
   },
 }));

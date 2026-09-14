@@ -31,10 +31,13 @@ the Architecture sidebar now lists the discovered APIs (HTTP method badge
 and path, click to select), and the center canvas reflects the current
 selection. SPRINT-5 made that selection do something real: selecting an
 API infers its business flow (`packages/business-analyzer` +
-`packages/graph-engine`) and renders it in the center canvas as an
-ordered, confidence-scored step list — icon, business name/description,
-and technical name per step, with "if the check above failed" /
-"otherwise" labels explaining any branching. `packages/visualization` and
-Monaco aren't wired in yet; the step list becomes a real interactive
-Cytoscape/ELK canvas starting with graph rendering (Weekend 6), and source
-navigation lands at Weekend 8.
+`packages/graph-engine`), and SPRINT-6 gave it a real home: the center
+canvas now renders an actual interactive flowchart
+(`packages/visualization`, Cytoscape.js + ELK.js) — decision nodes as
+diamonds with "Yes"/"No" branch edges, colored by outcome, pan/zoom, laid
+out top-to-bottom. Clicking a node selects it and fills the right-hand
+panel with its full detail (business description, confidence, technical
+name, source file/line) — the node itself stays short and legible, full
+detail lives in that panel. Monaco isn't wired in yet; source navigation
+(a working "Open Source" jump from that panel to the exact file/line)
+lands at Weekend 8.

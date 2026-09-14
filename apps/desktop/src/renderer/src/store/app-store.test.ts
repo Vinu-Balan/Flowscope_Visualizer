@@ -19,6 +19,7 @@ describe('useAppStore', () => {
       settingsDialogOpen: false,
       currentProject: null,
       selectedApiId: null,
+      selectedNodeId: null,
     });
   });
 
@@ -53,6 +54,18 @@ describe('useAppStore', () => {
     useAppStore.getState().setSelectedApiId('POST /customers#A.java:create');
     useAppStore.getState().closeProject();
     expect(useAppStore.getState().selectedApiId).toBeNull();
+  });
+
+  it('selecting a different API or closing the project clears the selected node', () => {
+    useAppStore.getState().setSelectedNodeId('step-2');
+    expect(useAppStore.getState().selectedNodeId).toBe('step-2');
+
+    useAppStore.getState().setSelectedApiId('GET /customers#A.java:list');
+    expect(useAppStore.getState().selectedNodeId).toBeNull();
+
+    useAppStore.getState().setSelectedNodeId('step-3');
+    useAppStore.getState().closeProject();
+    expect(useAppStore.getState().selectedNodeId).toBeNull();
   });
 
   it('command palette and settings dialog toggle independently', () => {

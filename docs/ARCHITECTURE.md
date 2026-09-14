@@ -95,11 +95,11 @@ cross-boundary calls are explicit, named, typed operations defined in
 `apps/desktop`, `packages/core`, `packages/logging`, `packages/config`,
 `packages/ipc`, `packages/workspace`, `packages/scanner`,
 `packages/parser-java`, `packages/parser-spring`, `packages/graph-schema`,
-`packages/graph-engine`, `packages/business-analyzer`, and `packages/ui`
-are implemented (SPRINT-1 through SPRINT-5 — see `docs/sprints/`).
-`apps/parser-engine` and the remaining `packages/*` (`shared`,
-`visualization`, `parser-core`) are still scaffolding only, pending
-SPRINT-6 onward.
+`packages/graph-engine`, `packages/business-analyzer`,
+`packages/visualization`, and `packages/ui` are implemented (SPRINT-1
+through SPRINT-6 — see `docs/sprints/`). `apps/parser-engine` and the
+remaining `packages/*` (`shared`, `parser-core`) are still scaffolding
+only, pending SPRINT-7 onward.
 
 Several structural refinements worth noting, all the same pattern for the
 same reason — keep `node:fs` out of anything the sandboxed preload script
@@ -134,3 +134,7 @@ and a Node-only implementation should follow it too:
   `packages/business-analyzer` and `packages/graph-engine`, by contrast,
   are Node-only and only ever imported from the Electron main process
   (`src/main/ipc-handlers.ts`) — never from preload or the renderer.
+- `packages/visualization` is the mirror image again: browser-only
+  (Cytoscape.js + ELK.js render to a DOM canvas), so it's only ever
+  imported from the renderer (`src/renderer/src/components/business-flow-panel.tsx`),
+  never from main or preload.

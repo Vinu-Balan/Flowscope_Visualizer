@@ -16,6 +16,21 @@ export interface CallDescription {
   readonly confidence: number;
 }
 
+export interface DecisionDescription extends CallDescription {
+  /**
+   * Which branch answers "Yes" to the phrased question. A raw Java guard
+   * condition being true doesn't always mean "yes" to the *phrased*
+   * question — `customer == null` being true means "no" to "was the
+   * customer found?". `'guard'` means the guard-clause branch (the one
+   * that fires when the raw condition is true) is the "Yes" answer;
+   * `'continue'` means the branch that resumes normal flow (raw condition
+   * false) is the "Yes" answer, and the guard branch is "No". This is
+   * what keeps a flowchart's Yes/No edge labels honest rather than just
+   * mirroring raw Java truth values (docs/sprints/SPRINT-6.md).
+   */
+  readonly affirmativeBranch: 'guard' | 'continue';
+}
+
 function capitalize(word: string): string {
   return word.length > 0 ? (word[0]?.toUpperCase() ?? '') + word.slice(1) : word;
 }
@@ -237,7 +252,7 @@ export function describeDecision(
   conditionText: string,
   conditionCall: { readonly targetName: string; readonly methodName: string } | undefined,
   noun: string,
-): CallDescription {
+): DecisionDescription {
   if (conditionCall) {
     const base = describeCall(conditionCall.methodName, noun);
     return {
@@ -247,6 +262,7 @@ export function describeDecision(
         : `Check: ${base.businessName}`,
       businessDescription: base.businessDescription,
       confidence: base.confidence,
+      affirmativeBranch: 'guard',
     };
   }
   if (/==\s*null/u.test(conditionText)) {
@@ -255,6 +271,9 @@ export function describeDecision(
       businessName: `Check if ${noun} was Found`,
       businessDescription: `Checks whether a matching ${noun.toLowerCase()} exists.`,
       confidence: 0.75,
+      // The guard fires when the raw check (`== null`) is true, i.e. NOT
+      // found — the "No" answer to "was it found?", not "Yes".
+      affirmativeBranch: 'continue',
     };
   }
   if (/!=\s*null/u.test(conditionText)) {
@@ -263,6 +282,7 @@ export function describeDecision(
       businessName: `Check if ${noun} Exists`,
       businessDescription: `Checks whether a ${noun.toLowerCase()} is present.`,
       confidence: 0.7,
+      affirmativeBranch: 'guard',
     };
   }
   return {
@@ -272,5 +292,6 @@ export function describeDecision(
       ? `Evaluates \`${conditionText}\`.`
       : 'Evaluates a condition.',
     confidence: 0.4,
+    affirmativeBranch: 'guard',
   };
 }
