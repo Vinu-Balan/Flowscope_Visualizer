@@ -4,12 +4,14 @@ import {
   FolderOpen,
   Moon,
   Settings as SettingsIcon,
+  Sparkles,
   Sun,
   SunMoon,
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useUpdateSettingsMutation } from '../lib/queries';
+import { useAnalyzeProjectFlow } from '../lib/use-analyze-project';
 import { useOpenProjectFlow } from '../lib/use-open-project';
 import { useAppStore } from '../store/app-store';
 
@@ -26,6 +28,7 @@ export function CommandPalette() {
   const setOpen = useAppStore((state) => state.setCommandPaletteOpen);
   const setSettingsOpen = useAppStore((state) => state.setSettingsDialogOpen);
   const { openViaDialog } = useOpenProjectFlow();
+  const { analyze, canAnalyze } = useAnalyzeProjectFlow();
   const updateSettings = useUpdateSettingsMutation();
 
   const items = useMemo<CommandItem[]>(
@@ -40,6 +43,20 @@ export function CommandPalette() {
           await openViaDialog();
         },
       },
+      ...(canAnalyze
+        ? [
+            {
+              id: 'analyze-project',
+              label: 'Analyze Project',
+              icon: Sparkles,
+              shortcut: ['Ctrl', 'Shift', 'A'],
+              run: async () => {
+                setOpen(false);
+                await analyze();
+              },
+            },
+          ]
+        : []),
       {
         id: 'open-settings',
         label: 'Open Settings',
@@ -78,7 +95,7 @@ export function CommandPalette() {
         },
       },
     ],
-    [openViaDialog, setOpen, setSettingsOpen, updateSettings],
+    [analyze, canAnalyze, openViaDialog, setOpen, setSettingsOpen, updateSettings],
   );
 
   return (

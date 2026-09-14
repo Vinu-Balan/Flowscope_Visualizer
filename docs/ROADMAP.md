@@ -73,16 +73,18 @@ project.
 
 ## Current status
 
-**Weekend 1 (Desktop foundation) and Weekend 2 (Project opening) complete**
-— see `docs/sprints/SPRINT-1.md` and `docs/sprints/SPRINT-2.md`. FlowScope
-launches as a real Electron desktop app: Welcome/Workspace routes,
-resizable three-pane workspace shell, command palette, settings dialog,
-theme system, and a working IPC contract (ping, project-open dialog,
-project validation, settings get/update). Opening a project now runs real
-Maven/Gradle validation (`packages/workspace`) with a Recent Projects list,
-honest error messages for invalid folders, and a non-blocking warning when
-a project doesn't look like Spring Boot. All backed by tested
+**Weekends 1–3 (Desktop foundation, Project opening, Project scanner)
+complete** — see `docs/sprints/SPRINT-1.md` through `SPRINT-3.md`.
+FlowScope launches as a real Electron desktop app: Welcome/Workspace
+routes, resizable three-pane workspace shell, command palette, settings
+dialog, theme system, and a working IPC contract (ping, project-open
+dialog, project validation, project scanning, settings get/update).
+Opening a project runs real Maven/Gradle validation (`packages/workspace`)
+with a Recent Projects list; clicking Analyze (or Ctrl/Cmd+Shift+A) walks
+the project's file tree (`packages/scanner`) and shows a real Java/resource
+file count in the Architecture sidebar. All backed by tested
 `packages/core`, `packages/logging`, `packages/config`, `packages/ipc`,
-`packages/workspace`, and `packages/ui`.
-No project scanning (reading the Java source tree) yet — that begins at
-Weekend 3 (`docs/sprints/SPRINT-3.md`, not yet written).
+`packages/workspace`, `packages/scanner`, and `packages/ui`, plus the
+first real test fixture (`tests/fixtures/simple-customer-service`).
+No Java parsing yet (files are discovered, not read for meaning) — that
+begins at Weekend 4 (`docs/sprints/SPRINT-4.md`, not yet written).

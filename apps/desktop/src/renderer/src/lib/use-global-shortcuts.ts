@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useAppStore } from '../store/app-store';
+import { useAnalyzeProjectFlow } from './use-analyze-project';
 import { type KeyboardShortcut, useKeyboardShortcuts } from './use-keyboard-shortcuts';
 import { useOpenProjectFlow } from './use-open-project';
 
@@ -10,6 +11,7 @@ export function useGlobalShortcuts(): void {
   const settingsDialogOpen = useAppStore((state) => state.settingsDialogOpen);
   const setSettingsDialogOpen = useAppStore((state) => state.setSettingsDialogOpen);
   const { openViaDialog } = useOpenProjectFlow();
+  const { analyze } = useAnalyzeProjectFlow();
 
   const shortcuts = useMemo<KeyboardShortcut[]>(
     () => [
@@ -35,6 +37,14 @@ export function useGlobalShortcuts(): void {
         },
       },
       {
+        key: 'a',
+        mod: true,
+        shift: true,
+        handler: () => {
+          void analyze();
+        },
+      },
+      {
         key: ',',
         mod: true,
         handler: () => {
@@ -51,6 +61,7 @@ export function useGlobalShortcuts(): void {
       },
     ],
     [
+      analyze,
       commandPaletteOpen,
       openViaDialog,
       setCommandPaletteOpen,

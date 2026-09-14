@@ -8,6 +8,7 @@ export const IPC_CHANNELS = {
   systemPing: 'system.ping',
   projectOpen: 'project.open',
   projectValidate: 'project.validate',
+  projectScan: 'project.scan',
   settingsGet: 'settings.get',
   settingsUpdate: 'settings.update',
 } as const;

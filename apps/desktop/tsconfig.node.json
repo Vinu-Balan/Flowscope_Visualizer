@@ -10,7 +10,9 @@
       "@flowscope/config/*": ["../../packages/config/src/*"],
       "@flowscope/ipc": ["../../packages/ipc/src/index.ts"],
       "@flowscope/workspace": ["../../packages/workspace/src/index.ts"],
-      "@flowscope/workspace/*": ["../../packages/workspace/src/*"]
+      "@flowscope/workspace/*": ["../../packages/workspace/src/*"],
+      "@flowscope/scanner": ["../../packages/scanner/src/index.ts"],
+      "@flowscope/scanner/*": ["../../packages/scanner/src/*"]
     }
   },
   "include": ["src/main/**/*", "src/preload/**/*"]

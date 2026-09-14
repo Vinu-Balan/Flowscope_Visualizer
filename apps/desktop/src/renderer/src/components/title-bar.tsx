@@ -1,6 +1,7 @@
 import { Button, Kbd, Tooltip } from '@flowscope/ui';
 import { Link } from '@tanstack/react-router';
 import { FolderOpen, Search, Settings as SettingsIcon, Sparkles } from 'lucide-react';
+import { useAnalyzeProjectFlow } from '../lib/use-analyze-project';
 import { useOpenProjectFlow } from '../lib/use-open-project';
 import { useAppStore } from '../store/app-store';
 
@@ -9,6 +10,7 @@ export function TitleBar() {
   const setSettingsDialogOpen = useAppStore((state) => state.setSettingsDialogOpen);
   const currentProject = useAppStore((state) => state.currentProject);
   const { openViaDialog, isPending } = useOpenProjectFlow();
+  const { analyze, isAnalyzing, canAnalyze } = useAnalyzeProjectFlow();
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-surface px-3">
@@ -42,11 +44,26 @@ export function TitleBar() {
         </Button>
       </Tooltip>
 
-      <Tooltip content="Project analysis lands in a later sprint">
+      <Tooltip
+        content={
+          canAnalyze ? (
+            <span className="flex items-center gap-1.5">
+              Scan for Java source files <Kbd keys={['Ctrl', 'Shift', 'A']} />
+            </span>
+          ) : (
+            'Open a project first'
+          )
+        }
+      >
         <span>
-          <Button variant="outline" size="sm" disabled>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!canAnalyze || isAnalyzing}
+            onClick={() => void analyze()}
+          >
             <Sparkles className="h-3.5 w-3.5" />
-            Analyze
+            {isAnalyzing ? 'Scanning…' : 'Analyze'}
           </Button>
         </span>
       </Tooltip>

@@ -93,14 +93,14 @@ cross-boundary calls are explicit, named, typed operations defined in
 ## Status
 
 `apps/desktop`, `packages/core`, `packages/logging`, `packages/config`,
-`packages/ipc`, `packages/workspace`, and `packages/ui` are implemented
-(SPRINT-1, SPRINT-2 — see `docs/sprints/`). `apps/parser-engine` and the
-remaining `packages/*` (`shared`, `visualization`, `graph-schema`,
-`graph-engine`, `parser-core`, `parser-java`, `parser-spring`,
-`business-analyzer`, `scanner`) are still scaffolding only, pending
-SPRINT-3 onward.
+`packages/ipc`, `packages/workspace`, `packages/scanner`, and
+`packages/ui` are implemented (SPRINT-1 through SPRINT-3 — see
+`docs/sprints/`). `apps/parser-engine` and the remaining `packages/*`
+(`shared`, `visualization`, `graph-schema`, `graph-engine`, `parser-core`,
+`parser-java`, `parser-spring`, `business-analyzer`) are still scaffolding
+only, pending SPRINT-4 onward.
 
-Two structural refinements worth noting, both the same pattern for the
+Three structural refinements worth noting, all the same pattern for the
 same reason — keep `node:fs` out of anything the sandboxed preload script
 might import — so any future package with both a pure schema/type surface
 and a Node-only implementation should follow it too:
@@ -113,3 +113,8 @@ and a Node-only implementation should follow it too:
   including the Node-only `validateProject`) and
   `@flowscope/workspace/project` (the zod schema for `ValidatedProject`,
   Node-free). See the comment atop `packages/workspace/src/project.ts`.
+- `packages/scanner` publishes `@flowscope/scanner` (the full barrel,
+  including the Node-only `scanProject`) and
+  `@flowscope/scanner/scan-result` (the zod schema for
+  `ProjectScanResult`, Node-free). See the comment atop
+  `packages/scanner/src/scan-result.ts`.

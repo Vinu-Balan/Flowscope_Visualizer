@@ -41,7 +41,7 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
 
 1. Desktop foundation (`SPRINT-1.md`) — complete
 2. Project opening (`SPRINT-2.md`) — complete
-3. Project scanner
+3. Project scanner (`SPRINT-3.md`) — complete
 4. API discovery
 5. Business flow engine
 6. Graph visualization
@@ -55,9 +55,10 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
 Dedicated, deterministic sample Spring Boot projects, no real/proprietary
 data, exercising REST APIs, service calls, DB operations, validation,
 conditional branches, exceptions, external calls, and transactions:
-`simple-customer-service`, `order-service`, `payment-service`,
-`error-handling-service`, `large-project-fixture`. To be created under
-`tests/fixtures/` when the scanner/parser work begins (SPRINT-3 onward).
+`simple-customer-service` (landed in SPRINT-3 — see its own README under
+`tests/fixtures/`), `order-service`, `payment-service`,
+`error-handling-service`, `large-project-fixture`. The remaining four are
+added as later sprints need what they specifically exercise.
 
 ## Acceptance criteria for the epic as a whole
 
@@ -75,8 +76,9 @@ conditional branches, exceptions, external calls, and transactions:
 
 ## Status
 
-In progress. SPRINT-1 (desktop foundation) and SPRINT-2 (project opening —
-real Maven/Gradle validation, replacing the unvalidated folder pick from
-Sprint 1) are complete and verified. Project scanning/analysis and
-everything it unlocks (APIs, business flows, Inspector, source navigation)
-has not started; that's SPRINT-3 onward.
+In progress. SPRINT-1 (desktop foundation), SPRINT-2 (project opening —
+real Maven/Gradle validation), and SPRINT-3 (project scanner — Java/resource
+file discovery, surfaced in the Architecture sidebar) are complete and
+verified. Nothing reads the _contents_ of a Java file yet — API discovery,
+business flows, the Inspector, and source navigation all depend on
+SPRINT-4's parser and have not started.

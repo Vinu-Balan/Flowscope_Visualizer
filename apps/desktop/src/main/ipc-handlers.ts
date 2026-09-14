@@ -3,6 +3,8 @@ import { withRecentProject } from '@flowscope/config';
 import {
   IPC_CHANNELS,
   ProjectOpenResponseSchema,
+  ProjectScanRequestSchema,
+  ProjectScanResponseSchema,
   ProjectValidateRequestSchema,
   ProjectValidateResponseSchema,
   SettingsGetResponseSchema,
@@ -12,6 +14,7 @@ import {
   parseOrThrow,
 } from '@flowscope/ipc';
 import type { Logger } from '@flowscope/logging';
+import { scanProject } from '@flowscope/scanner';
 import { validateProject } from '@flowscope/workspace';
 import { app, dialog, ipcMain, type BrowserWindow } from 'electron';
 
@@ -113,6 +116,37 @@ export function registerIpcHandlers({
       ProjectValidateResponseSchema,
       { status: 'valid', project: result.value },
       { channel: IPC_CHANNELS.projectValidate, direction: 'response' },
+    );
+  });
+
+  ipcMain.handle(IPC_CHANNELS.projectScan, async (_event, rawRequest: unknown) => {
+    const request = parseOrThrow(ProjectScanRequestSchema, rawRequest, {
+      channel: IPC_CHANNELS.projectScan,
+      direction: 'request',
+    });
+
+    const result = await scanProject(request.path);
+
+    if (!result.ok) {
+      log.warn('project.scan failed', { path: request.path, error: result.error.toJSON() });
+      return parseOrThrow(
+        ProjectScanResponseSchema,
+        { status: 'error', message: result.error.message },
+        { channel: IPC_CHANNELS.projectScan, direction: 'response' },
+      );
+    }
+
+    log.info('project.scan completed', {
+      path: request.path,
+      javaFiles: result.value.javaFiles.length,
+      resourceFiles: result.value.resourceFiles.length,
+      durationMs: result.value.durationMs,
+    });
+
+    return parseOrThrow(
+      ProjectScanResponseSchema,
+      { status: 'success', result: result.value },
+      { channel: IPC_CHANNELS.projectScan, direction: 'response' },
     );
   });
 

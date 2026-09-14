@@ -10,10 +10,12 @@ export type { SystemPingResponse } from './contracts/system';
 export {
   ProjectOpenRequestSchema,
   ProjectOpenResponseSchema,
+  ProjectScanRequestSchema,
+  ProjectScanResponseSchema,
   ProjectValidateRequestSchema,
   ProjectValidateResponseSchema,
 } from './contracts/project';
-export type { ProjectOpenResponse } from './contracts/project';
+export type { ProjectOpenResponse, ProjectScanResponse } from './contracts/project';
 
 export {
   SettingsGetRequestSchema,

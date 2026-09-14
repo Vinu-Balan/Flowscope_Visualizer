@@ -63,6 +63,33 @@ describe('IPC_CONTRACT', () => {
     expect(contract.response.safeParse({ status: 'valid' }).success).toBe(false);
   });
 
+  it('project.scan response accepts both success and error outcomes', () => {
+    const contract = IPC_CONTRACT[IPC_CHANNELS.projectScan];
+    expect(
+      contract.response.safeParse({
+        status: 'success',
+        result: {
+          projectPath: '/tmp/demo',
+          scannedAt: new Date().toISOString(),
+          durationMs: 12,
+          totalFilesScanned: 3,
+          totalDirectoriesSkipped: 0,
+          javaFiles: [
+            {
+              path: 'src/main/java/A.java',
+              sizeBytes: 10,
+              contentHash: 'a'.repeat(64),
+              sourceSet: 'main',
+            },
+          ],
+          resourceFiles: [],
+        },
+      }).success,
+    ).toBe(true);
+    expect(contract.response.safeParse({ status: 'error', message: 'boom' }).success).toBe(true);
+    expect(contract.response.safeParse({ status: 'error' }).success).toBe(false);
+  });
+
   it('settings.get response is the full Settings shape', () => {
     const contract = IPC_CONTRACT[IPC_CHANNELS.settingsGet];
     expect(contract.response.safeParse(DEFAULT_SETTINGS).success).toBe(true);

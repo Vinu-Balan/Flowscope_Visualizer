@@ -1,7 +1,8 @@
-// Imported from the isomorphic `/project` subpath, not the package root —
-// the root barrel also exports the Node-only validateProject (node:fs),
-// which must never end up in the preload/renderer bundle. See the comment
-// atop packages/workspace/src/project.ts.
+// Imported from the isomorphic subpaths, not the package roots — both
+// root barrels also export a Node-only implementation (node:fs), which
+// must never end up in the preload/renderer bundle. See the comments atop
+// packages/workspace/src/project.ts and packages/scanner/src/scan-result.ts.
+import { ProjectScanResultSchema } from '@flowscope/scanner/scan-result';
 import { ProjectValidationResultSchema } from '@flowscope/workspace/project';
 import { z } from 'zod';
 
@@ -26,3 +27,16 @@ export type ProjectOpenResponse = z.infer<typeof ProjectOpenResponseSchema>;
  */
 export const ProjectValidateRequestSchema = z.object({ path: z.string().min(1) });
 export const ProjectValidateResponseSchema = ProjectValidationResultSchema;
+
+/**
+ * Scans a validated project's file tree for Java source and resource
+ * files (docs/sprints/SPRINT-3.md). Only fails (status: 'error') if the
+ * project root itself can no longer be read.
+ */
+export const ProjectScanRequestSchema = z.object({ path: z.string().min(1) });
+
+export const ProjectScanResponseSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('success'), result: ProjectScanResultSchema }),
+  z.object({ status: z.literal('error'), message: z.string().min(1) }),
+]);
+export type ProjectScanResponse = z.infer<typeof ProjectScanResponseSchema>;

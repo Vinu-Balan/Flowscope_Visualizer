@@ -11,7 +11,15 @@ import tailwindcss from 'tailwindcss';
  * Vite/Rollup bundles them into main/preload/renderer output instead of
  * trying to `require()` a .ts file at runtime.
  */
-const WORKSPACE_PACKAGES = ['core', 'logging', 'config', 'ipc', 'ui', 'workspace'] as const;
+const WORKSPACE_PACKAGES = [
+  'core',
+  'logging',
+  'config',
+  'ipc',
+  'ui',
+  'workspace',
+  'scanner',
+] as const;
 
 function workspaceAliases(): Record<string, string> {
   return Object.fromEntries(

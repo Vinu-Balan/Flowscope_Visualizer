@@ -49,6 +49,9 @@ importers:
       '@flowscope/logging':
         specifier: workspace:*
         version: link:../../packages/logging
+      '@flowscope/scanner':
+        specifier: workspace:*
+        version: link:../../packages/scanner
       '@flowscope/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -145,6 +148,9 @@ importers:
       '@flowscope/core':
         specifier: workspace:*
         version: link:../core
+      '@flowscope/scanner':
+        specifier: workspace:*
+        version: link:../scanner
       '@flowscope/workspace':
         specifier: workspace:*
         version: link:../workspace
@@ -164,7 +170,14 @@ importers:
 
   packages/parser-spring: {}
 
-  packages/scanner: {}
+  packages/scanner:
+    dependencies:
+      '@flowscope/core':
+        specifier: workspace:*
+        version: link:../core
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
 
   packages/shared: {}
 

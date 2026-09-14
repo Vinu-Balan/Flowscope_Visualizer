@@ -20,6 +20,7 @@
     "@flowscope/core": "workspace:*",
     "@flowscope/ipc": "workspace:*",
     "@flowscope/logging": "workspace:*",
+    "@flowscope/scanner": "workspace:*",
     "@flowscope/ui": "workspace:*",
     "@flowscope/workspace": "workspace:*",
     "@tanstack/react-query": "^5.62.0",

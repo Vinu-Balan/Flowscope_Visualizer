@@ -17,10 +17,13 @@ sandboxed where compatible, minimal preload surface — see
 
 **Status:** desktop shell implemented (SPRINT-1) — window, routing, command
 palette, settings dialog, theme system, and the IPC-backed toolbar/status
-bar. Real project validation lands in SPRINT-2: opening a folder (dialog,
-Ctrl+O, or a Recent Projects entry on the Welcome screen) now runs
-Maven/Gradle detection via `packages/workspace` before entering the
-workspace, with honest errors for an invalid folder and a non-blocking
-warning when a project doesn't look like Spring Boot. `packages/visualization`
-and Monaco aren't wired in yet; that starts with graph rendering
-(Weekend 6) and source navigation (Weekend 8).
+bar. Real project validation landed in SPRINT-2: opening a folder (dialog,
+Ctrl+O, or a Recent Projects entry on the Welcome screen) runs Maven/Gradle
+detection via `packages/workspace` before entering the workspace, with
+honest errors for an invalid folder and a non-blocking warning when a
+project doesn't look like Spring Boot. SPRINT-3 wired up the Analyze button
+(and Ctrl/Cmd+Shift+A): it scans the project's file tree via
+`packages/scanner` and shows a real Java/resource file summary in the
+Architecture sidebar. `packages/visualization` and Monaco aren't wired in
+yet; that starts with graph rendering (Weekend 6) and source navigation
+(Weekend 8).

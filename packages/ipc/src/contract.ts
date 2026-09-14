@@ -3,6 +3,8 @@ import { IPC_CHANNELS } from './channels';
 import {
   ProjectOpenRequestSchema,
   ProjectOpenResponseSchema,
+  ProjectScanRequestSchema,
+  ProjectScanResponseSchema,
   ProjectValidateRequestSchema,
   ProjectValidateResponseSchema,
 } from './contracts/project';
@@ -32,6 +34,10 @@ export const IPC_CONTRACT = {
   [IPC_CHANNELS.projectValidate]: {
     request: ProjectValidateRequestSchema,
     response: ProjectValidateResponseSchema,
+  },
+  [IPC_CHANNELS.projectScan]: {
+    request: ProjectScanRequestSchema,
+    response: ProjectScanResponseSchema,
   },
   [IPC_CHANNELS.settingsGet]: {
     request: SettingsGetRequestSchema,
