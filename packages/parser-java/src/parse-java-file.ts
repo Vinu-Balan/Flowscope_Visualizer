@@ -7,9 +7,9 @@ import {
   type MethodDeclarationCtx,
   type PackageDeclarationCtx,
 } from 'java-parser';
-import { findFirstToken } from './cst-utils';
+import { childNode, childNodes, findFirstToken, hasChild } from './cst-utils';
 import { extractAnnotationsFromModifiers } from './extract-annotation';
-import { extractBodyEvents } from './extract-body-events';
+import { extractBodyEvents, leadingStringLiteral } from './extract-body-events';
 import type { JavaAnnotation, JavaField, JavaMethod, JavaSourceFile, JavaType } from './java-model';
 
 /**
@@ -25,6 +25,22 @@ import type { JavaAnnotation, JavaField, JavaMethod, JavaSourceFile, JavaType } 
  * real method.
  */
 const NESTED_RECORD_DECLARATION_PATTERN = /\brecord\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/g;
+
+/**
+ * Counts a method declarator's formal parameters (a trailing varargs
+ * parameter counts as one), for disambiguating same-named overloads by
+ * arity — no type information is available to do it any other way (see
+ * `JavaMethod.parameterCount`, docs/sprints/SPRINT-7.md).
+ */
+function parameterCountOf(declarator: unknown): number {
+  const list = childNode(declarator, 'formalParameterList');
+  if (!list) {
+    return 0;
+  }
+  const fixed = childNodes(list, 'formalParameter').length;
+  const varargs = childNode(list, 'lastFormalParameter') ? 1 : 0;
+  return fixed + varargs;
+}
 
 function collectRecordDeclarationNames(source: string): ReadonlySet<string> {
   const names = new Set<string>();
@@ -116,11 +132,31 @@ class JavaSemanticModelVisitor extends BaseJavaCstVisitorWithDefaults {
     }
 
     const type = findFirstToken(ctx.unannType)?.image ?? '';
+    // `static final String X = "literal";` — the common Java idiom of
+    // naming a view/redirect target once and returning the constant
+    // (docs/sprints/SPRINT-7.md; found in the user's real AdminController).
+    const modifiers = ctx.fieldModifier ?? [];
+    const isStringConstant =
+      type === 'String' &&
+      modifiers.some((modifier) => hasChild(modifier, 'Static')) &&
+      modifiers.some((modifier) => hasChild(modifier, 'Final'));
+
     for (const declarator of ctx.variableDeclaratorList[0]?.children.variableDeclarator ?? []) {
       const nameToken = declarator.children.variableDeclaratorId[0]?.children.Identifier?.[0];
-      if (nameToken) {
-        current.fields.push({ name: nameToken.image, type });
+      if (!nameToken) {
+        continue;
       }
+      let stringConstantValue: string | undefined;
+      if (isStringConstant) {
+        const initializer = childNode(declarator, 'variableInitializer');
+        const expression = initializer && childNode(initializer, 'expression');
+        stringConstantValue = expression ? leadingStringLiteral(expression) : undefined;
+      }
+      current.fields.push({
+        name: nameToken.image,
+        type,
+        ...(stringConstantValue !== undefined ? { stringConstantValue } : {}),
+      });
     }
   }
 
@@ -142,9 +178,10 @@ class JavaSemanticModelVisitor extends BaseJavaCstVisitorWithDefaults {
 
     const annotations = extractAnnotationsFromModifiers(ctx.methodModifier);
     const line = nameToken ? nameToken.startLine : 0;
+    const parameterCount = declarator ? parameterCountOf(declarator) : 0;
     const bodyEvents = ctx.methodBody[0] ? extractBodyEvents(ctx.methodBody[0]) : [];
 
-    current.methods.push({ name, annotations, line, bodyEvents });
+    current.methods.push({ name, annotations, line, parameterCount, bodyEvents });
     // Deliberately never calls this.visit(ctx.methodBody) — body events are
     // extracted directly by extract-body-events.ts, a separate, bounded
     // walk (see docs/sprints/SPRINT-5.md), not through the class-level

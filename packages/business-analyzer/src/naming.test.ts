@@ -5,6 +5,7 @@ import {
   describeDecision,
   describeReturn,
   describeThrow,
+  describeViewReturn,
   domainNounFromPath,
   domainNounFromType,
   humanizeIdentifier,
@@ -134,5 +135,90 @@ describe('describeDecision', () => {
   it('falls back to a low-confidence generic condition description', () => {
     const result = describeDecision('a > b', undefined, 'Customer');
     expect(result.confidence).toBeLessThan(0.5);
+  });
+});
+
+describe('describeCall — Model/ModelAndView population (docs/sprints/SPRINT-7.md)', () => {
+  it('names an addAttribute call after its literal key, not generically', () => {
+    const withKey = describeCall('addAttribute', 'Admin', 'username');
+    expect(withKey.businessName).toBe('Prepare "username" for Display');
+
+    const withOtherKey = describeCall('addAttribute', 'Admin', 'errors');
+    expect(withOtherKey.businessName).toBe('Prepare "errors" for Display');
+
+    // Two different calls to the same method must not render identically —
+    // the exact complaint this sprint responds to.
+    expect(withKey.businessName).not.toBe(withOtherKey.businessName);
+  });
+
+  it('recognizes addObject (ModelAndView) the same way as addAttribute (Model)', () => {
+    const result = describeCall('addObject', 'Admin', 'products');
+    expect(result.businessName).toBe('Prepare "products" for Display');
+    expect(result.type).toBe('transformation');
+  });
+
+  it('falls back to a generic phrase when addAttribute has no literal key', () => {
+    const result = describeCall('addAttribute', 'Admin');
+    expect(result.businessName).toBe('Prepare Admin Data for Display');
+    expect(result.confidence).toBeLessThan(0.6);
+  });
+});
+
+describe('describeCall — setXxx property mutators (docs/sprints/SPRINT-7.md)', () => {
+  it('names a setter after the property it sets', () => {
+    const result = describeCall('setName', 'Product');
+    expect(result.businessName).toBe('Set Name');
+    expect(result.type).toBe('transformation');
+  });
+
+  it('produces distinct names for different setters', () => {
+    expect(describeCall('setCategory', 'Product').businessName).toBe('Set Category');
+    expect(describeCall('setPrice', 'Product').businessName).toBe('Set Price');
+  });
+});
+
+describe('describeCall — fallback enrichment with a string argument (docs/sprints/SPRINT-7.md)', () => {
+  it('appends the literal argument so two unrecognized calls differ', () => {
+    const first = describeCall('doTheThing', 'Customer', 'alpha');
+    const second = describeCall('doTheThing', 'Customer', 'beta');
+    expect(first.businessName).toContain('alpha');
+    expect(second.businessName).toContain('beta');
+    expect(first.businessName).not.toBe(second.businessName);
+  });
+});
+
+describe('describeViewReturn (docs/sprints/SPRINT-7.md)', () => {
+  it('describes a redirect view name', () => {
+    const result = describeViewReturn('redirect:/admin/products');
+    expect(result.businessName).toBe('Redirect to Admin Products');
+    expect(result.type).toBe('response');
+  });
+
+  it('describes a forward view name', () => {
+    const result = describeViewReturn('forward:/checkout');
+    expect(result.businessName).toBe('Forward to Checkout');
+  });
+
+  it('describes a plain view name as a rendered page', () => {
+    const result = describeViewReturn('customer/list');
+    expect(result.businessName).toBe('Show Customer List Page');
+  });
+
+  it('produces distinct names for different view names, unlike the old generic "Return Response"', () => {
+    const index = describeViewReturn('index');
+    const login = describeViewReturn('adminlogin');
+    expect(index.businessName).not.toBe(login.businessName);
+  });
+});
+
+describe('describeThrow with a message (docs/sprints/SPRINT-7.md)', () => {
+  it('folds the message into the description when present', () => {
+    const result = describeThrow('IllegalStateException', 'Customer', 'Email already exists: ');
+    expect(result.businessDescription).toContain('Email already exists');
+  });
+
+  it('falls back to the exception type alone when no message is available', () => {
+    const result = describeThrow('IllegalStateException', 'Customer');
+    expect(result.businessDescription).toBe('Throws `IllegalStateException`.');
   });
 });

@@ -24,7 +24,7 @@ describe('parseJavaFile — body events against the real fixture', () => {
 
     const register = controller?.methods.find((m) => m.name === 'register');
     expect(register?.bodyEvents).toEqual([
-      { kind: 'call', line: 23, targetName: 'customerService', methodName: 'register' },
+      { kind: 'call', line: 23, targetName: 'customerService', methodName: 'register', argumentCount: 2 },
       { kind: 'return', line: 24, returnsCallTarget: 'ResponseEntity', returnsCallMethod: 'ok' },
     ]);
   });
@@ -35,7 +35,7 @@ describe('parseJavaFile — body events against the real fixture', () => {
     const findById = controller?.methods.find((m) => m.name === 'findById');
 
     expect(findById?.bodyEvents).toEqual([
-      { kind: 'call', line: 29, targetName: 'customerService', methodName: 'findById' },
+      { kind: 'call', line: 29, targetName: 'customerService', methodName: 'findById', argumentCount: 1 },
       {
         kind: 'if',
         line: 30,
@@ -67,11 +67,18 @@ describe('parseJavaFile — body events against the real fixture', () => {
         guardThrows: true,
         guardReturns: false,
       },
-      { kind: 'call', line: 14, targetName: '', methodName: 'existsByEmail' },
-      { kind: 'throw', line: 15, exceptionType: 'IllegalStateException' },
+      { kind: 'call', line: 14, targetName: '', methodName: 'existsByEmail', argumentCount: 1 },
+      {
+        kind: 'throw',
+        line: 15,
+        exceptionType: 'IllegalStateException',
+        // The exception's message is `"Customer already exists: " + email` —
+        // a concatenation, so only the leading literal is captured.
+        exceptionMessage: 'Customer already exists: ',
+      },
       { kind: 'construct', line: 17, methodName: 'Customer', looksGenerated: true },
-      { kind: 'call', line: 18, targetName: 'customersById', methodName: 'put' },
-      { kind: 'return', line: 19 },
+      { kind: 'call', line: 18, targetName: 'customersById', methodName: 'put', argumentCount: 2 },
+      { kind: 'return', line: 19, returnsIdentifier: 'customer' },
     ]);
   });
 

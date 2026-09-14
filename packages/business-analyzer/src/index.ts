@@ -6,6 +6,7 @@ export {
   describeDecision,
   describeReturn,
   describeThrow,
+  describeViewReturn,
   domainNounFromPath,
   domainNounFromType,
   humanizeIdentifier,

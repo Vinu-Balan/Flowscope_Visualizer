@@ -30,5 +30,16 @@ only a method's direct block and one level into an `if`'s then-branch are
 walked; loops, switch, try/catch, and lambdas aren't modeled. See
 "Planned scope" in `docs/sprints/SPRINT-5.md`.
 
-**Status:** implemented — see `docs/sprints/SPRINT-4.md` / Weekend 4 and
-`docs/sprints/SPRINT-5.md` / Weekend 5.
+A `JavaMethod` also carries its declaration `line` and `parameterCount`
+(arity) — the only two signals available, with no type checker, for
+telling apart overloaded methods sharing a name; `packages/business-analyzer`
+uses both to resolve a call or an API's entry point to the *right*
+overload rather than always the first-declared one
+(`docs/sprints/SPRINT-7.md`, found and fixed against a real Spring MVC
+controller with a `GET`/`POST` handler pair sharing a name). A `JavaField`
+also carries `stringConstantValue` when it's a `static final String`
+assigned a literal — the `private static final String VIEW = "...";`
+idiom of naming a view/redirect target once (SPRINT-7.md).
+
+**Status:** implemented — see `docs/sprints/SPRINT-4.md` / Weekend 4,
+`docs/sprints/SPRINT-5.md` / Weekend 5, and `docs/sprints/SPRINT-7.md`.

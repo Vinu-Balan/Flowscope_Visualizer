@@ -74,8 +74,9 @@ project.
 ## Current status
 
 **Weekends 1–6 (Desktop foundation, Project opening, Project scanner, API
-discovery, Business flow engine, Graph visualization) complete** — see
-`docs/sprints/SPRINT-1.md` through `SPRINT-6.md`. FlowScope launches as a
+discovery, Business flow engine, Graph visualization) complete, plus a
+Sprint 7 real-world hardening pass** — see `docs/sprints/SPRINT-1.md`
+through `SPRINT-7.md`. FlowScope launches as a
 real Electron desktop app: Welcome/Workspace routes, resizable three-pane
 workspace shell, command palette, settings dialog, theme system, and a
 working IPC contract (ping, project-open dialog, project validation,
@@ -93,14 +94,25 @@ outgoing edges (its guard-clause outcome and whatever resumes normal
 flow), each inferred from the method's actual call graph one level of
 same-project calls deep, never presented as certain — and renders it as a
 real interactive flowchart (`packages/visualization`, Cytoscape.js +
-ELK.js): decision diamonds, Yes/No branch labels, colored edges, pan/zoom,
-click a node for its full detail (description, confidence, technical
-name, source location) in the side panel. All backed by tested
-`packages/core`, `packages/logging`, `packages/config`, `packages/ipc`,
+ELK.js): decision hexagons (SPRINT-7.md — a diamond's usable text area was
+too cramped for real decision text), Yes/No branch labels, colored edges,
+pan/zoom, click a node for its full detail — description, confidence, a
+labeled Technical table (call, class, method, source location), and a
+Flow section showing what leads into and out of that step — in the side
+panel. Business-flow extraction correctly resolves overloaded handler
+methods (two `@GetMapping`/`@PostMapping` methods sharing a name each
+analyze their own body, not whichever was declared first), inlines a bare
+self-call to a private same-class helper, and resolves a
+`private static final String` constant's literal value on `return`
+(SPRINT-7.md, found and fixed against the user's own real Spring Boot
+projects, not just the fixture). All backed by tested `packages/core`,
+`packages/logging`, `packages/config`, `packages/ipc`,
 `packages/workspace`, `packages/scanner`, `packages/parser-java`,
 `packages/parser-spring`, `packages/graph-schema`, `packages/graph-engine`,
 `packages/business-analyzer`, `packages/visualization`, and `packages/ui`,
 plus the first real test fixture (`tests/fixtures/simple-customer-service`).
 The Inspector's full business/developer/technical level switching and
-source navigation ("Open Source" → Monaco) begin at Weekend 7/8
-(`docs/sprints/SPRINT-7.md`, not yet written).
+source navigation ("Open Source" → Monaco) are still Weekend 7/8's
+remaining work, next (`docs/sprints/SPRINT-8.md`, not yet written —
+SPRINT-7.md was a hardening pass that doesn't map onto a numbered
+weekend, see its own Goal section).

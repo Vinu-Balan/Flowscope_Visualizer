@@ -66,7 +66,12 @@ export function humanizeIdentifier(name: string): string {
 
 interface PatternRule {
   readonly regex: RegExp;
-  readonly build: (methodName: string, match: RegExpMatchArray, noun: string) => CallDescription;
+  readonly build: (
+    methodName: string,
+    match: RegExpMatchArray,
+    noun: string,
+    firstStringArgument: string | undefined,
+  ) => CallDescription;
 }
 
 const RULES: readonly PatternRule[] = [
@@ -127,6 +132,35 @@ const RULES: readonly PatternRule[] = [
     }),
   },
   {
+    // Spring MVC's `Model`/`ModelAndView` population — extremely common in
+    // classic (non-REST) controllers, and previously the single biggest
+    // source of "every node has the same text" (docs/sprints/SPRINT-7.md):
+    // every call looked identical without the attribute name.
+    regex: /^add(?:Flash)?Attribute$|^addObject$/u,
+    build: (_methodName, _match, noun, firstStringArgument) => ({
+      type: 'transformation',
+      businessName: firstStringArgument
+        ? `Prepare "${firstStringArgument}" for Display`
+        : `Prepare ${noun} Data for Display`,
+      businessDescription: firstStringArgument
+        ? `Adds "${firstStringArgument}" to the data shown to the user.`
+        : 'Adds data to the response shown to the user.',
+      confidence: firstStringArgument ? 0.7 : 0.45,
+    }),
+  },
+  {
+    regex: /^set([A-Z]\w*)$/u,
+    build: (_methodName, match, noun) => {
+      const property = humanizeIdentifier(match[1] ?? '');
+      return {
+        type: 'transformation',
+        businessName: `Set ${property}`,
+        businessDescription: `Sets the ${noun.toLowerCase()}'s ${property.toLowerCase()}.`,
+        confidence: 0.65,
+      };
+    },
+  },
+  {
     regex: /^(register|create|add)$/u,
     build: (methodName, _match, noun) => ({
       type: 'business-step',
@@ -173,18 +207,34 @@ const RULES: readonly PatternRule[] = [
   },
 ];
 
-/** Describes a single method call/statement — the main entry point every other `describe*` helper in this module builds on. */
-export function describeCall(methodName: string, noun: string): CallDescription {
+/**
+ * Describes a single method call/statement — the main entry point every
+ * other `describe*` helper in this module builds on. `firstStringArgument`
+ * (the call's leading string-literal argument, if any — see
+ * `packages/parser-java`'s `JavaBodyEvent.firstStringArgument`) both feeds
+ * dedicated rules (`addAttribute`) and, for any method matching no
+ * pattern, gets folded into the fallback name — two different calls to
+ * the same unrecognized method no longer render as identical text
+ * (docs/sprints/SPRINT-7.md).
+ */
+export function describeCall(
+  methodName: string,
+  noun: string,
+  firstStringArgument?: string,
+): CallDescription {
   for (const rule of RULES) {
     const match = methodName.match(rule.regex);
     if (match) {
-      return rule.build(methodName, match, noun);
+      return rule.build(methodName, match, noun, firstStringArgument);
     }
   }
+  const humanized = humanizeIdentifier(methodName) || methodName;
   return {
     type: 'business-step',
-    businessName: humanizeIdentifier(methodName) || methodName,
-    businessDescription: `Calls \`${methodName}\` — no naming pattern recognized this method, so this is a direct translation, not a business inference.`,
+    businessName: firstStringArgument ? `${humanized} "${firstStringArgument}"` : humanized,
+    businessDescription: firstStringArgument
+      ? `Calls \`${methodName}("${firstStringArgument}", ...)\` — no naming pattern recognized this method, so this is a direct translation, not a business inference.`
+      : `Calls \`${methodName}\` — no naming pattern recognized this method, so this is a direct translation, not a business inference.`,
     confidence: 0.35,
   };
 }
@@ -222,12 +272,59 @@ export function describeReturn(
   };
 }
 
-export function describeThrow(exceptionType: string, noun: string): CallDescription {
+export function describeThrow(exceptionType: string, noun: string, message?: string): CallDescription {
   return {
     type: 'error',
     businessName: `Reject ${noun}`,
-    businessDescription: `Throws \`${exceptionType}\`.`,
-    confidence: 0.6,
+    businessDescription: message
+      ? `Throws \`${exceptionType}\`: "${message.trim()}"`
+      : `Throws \`${exceptionType}\`.`,
+    confidence: message ? 0.65 : 0.6,
+  };
+}
+
+const REDIRECT_VIEW_PREFIX = 'redirect:';
+const FORWARD_VIEW_PREFIX = 'forward:';
+
+/** Turns a view path/name into a readable phrase — "customer/list" or "customer-list" → "Customer List". */
+function humanizeViewPath(path: string): string {
+  const trimmed = path.replace(/^\/+|\/+$/gu, '');
+  const words = trimmed.split(/[/\-_]+/u).filter((word) => word.length > 0);
+  return words.length > 0 ? words.map(capitalize).join(' ') : trimmed;
+}
+
+/**
+ * Describes a controller method's `return "someView";` — classic Spring
+ * MVC's other common terminal step, alongside a `ResponseEntity`/DTO
+ * return `describeReturn` already handles. Distinguishes redirects,
+ * forwards, and plain view renders so different return statements in the
+ * same controller don't all collapse into identical text
+ * (docs/sprints/SPRINT-7.md).
+ */
+export function describeViewReturn(viewName: string): CallDescription {
+  if (viewName.startsWith(REDIRECT_VIEW_PREFIX)) {
+    const target = viewName.slice(REDIRECT_VIEW_PREFIX.length);
+    return {
+      type: 'response',
+      businessName: `Redirect to ${humanizeViewPath(target)}`,
+      businessDescription: `Redirects the browser to "${target}".`,
+      confidence: 0.75,
+    };
+  }
+  if (viewName.startsWith(FORWARD_VIEW_PREFIX)) {
+    const target = viewName.slice(FORWARD_VIEW_PREFIX.length);
+    return {
+      type: 'response',
+      businessName: `Forward to ${humanizeViewPath(target)}`,
+      businessDescription: `Forwards the request to "${target}".`,
+      confidence: 0.7,
+    };
+  }
+  return {
+    type: 'response',
+    businessName: `Show ${humanizeViewPath(viewName)} Page`,
+    businessDescription: `Renders the "${viewName}" view.`,
+    confidence: 0.7,
   };
 }
 

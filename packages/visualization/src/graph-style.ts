@@ -56,6 +56,17 @@ export function getStylesheet(theme: GraphTheme): StylesheetJson {
       },
     },
     {
+      // A hexagon's angled corners cut into its usable text area more
+      // than a rectangle's do — extra padding keeps decision text off
+      // those edges instead of merely fitting the bounding box
+      // (docs/sprints/SPRINT-7.md).
+      selector: 'node.node-decision',
+      style: {
+        'text-max-width': '160px',
+        padding: '26px',
+      },
+    },
+    {
       selector: 'node[?lowConfidence]',
       style: {
         'border-style': 'dashed',

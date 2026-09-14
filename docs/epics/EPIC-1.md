@@ -45,6 +45,9 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
 4. API discovery (`SPRINT-4.md`) — complete
 5. Business flow engine (`SPRINT-5.md`) — complete
 6. Graph visualization (`SPRINT-6.md`) — complete
+   - Real-world extraction fidelity & naming quality hardening
+     (`SPRINT-7.md`) — complete; doesn't map onto its own weekend, see
+     SPRINT-7.md's Goal section
 7. Inspector
 8. Code navigation
 9. Search & UX polish
@@ -84,11 +87,16 @@ endpoint discovery via `packages/parser-spring`, both surfaced in a
 clickable Architecture sidebar list), SPRINT-5 (business flow engine —
 `packages/business-analyzer` infers a confidence-scored, branching
 business flow per API, `packages/graph-engine`/`packages/graph-schema`
-assemble and validate the BEG), and SPRINT-6 (graph visualization — the
+assemble and validate the BEG), SPRINT-6 (graph visualization — the
 BEG now renders as a real interactive flowchart, `packages/visualization`
-via Cytoscape.js + ELK.js: decision diamonds, Yes/No branch edges,
-pan/zoom, click-to-select) are complete and verified. Selecting a node
-already surfaces business + technical detail in the side panel, a partial
-step toward the full Inspector acceptance criterion below — the "Open
-Source" jump to Monaco (source navigation isn't wired in yet) is
-SPRINT-7/8's remaining work.
+via Cytoscape.js + ELK.js: decision hexagons, Yes/No branch edges,
+pan/zoom, click-to-select), and SPRINT-7 (a real-world hardening pass —
+overloaded handler methods now resolve to their own body instead of
+whichever was declared first, a bare self-call to a private helper is
+inlined, a `static final String` constant resolves on `return`, and the
+node-detail panel's Technical/Flow sections carry real detail instead of
+one line) are complete and verified. Selecting a node already surfaces
+business + technical detail in the side panel, a partial step toward the
+full Inspector acceptance criterion below — the "Open Source" jump to
+Monaco (source navigation isn't wired in yet) is the remaining work,
+next.

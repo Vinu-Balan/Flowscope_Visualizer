@@ -11,7 +11,7 @@ function annotation(
 }
 
 function method(overrides: Partial<JavaMethod> & Pick<JavaMethod, 'name'>): JavaMethod {
-  return { annotations: [], line: 1, bodyEvents: [], ...overrides };
+  return { annotations: [], line: 1, parameterCount: 0, bodyEvents: [], ...overrides };
 }
 
 function javaType(overrides: Partial<JavaType> & Pick<JavaType, 'name'>): JavaType {

@@ -9,6 +9,7 @@ import {
   describeDecision,
   describeReturn,
   describeThrow,
+  describeViewReturn,
   domainNounFromType,
   type CallDescription,
 } from './naming';
@@ -109,10 +110,31 @@ interface CallResolution {
   readonly key: string;
 }
 
+/**
+ * Picks the right overload among same-named methods on a resolved target
+ * type. There's no static type information to match parameter *types*
+ * against, but argument *count* is enough to tell apart the common case —
+ * distinct overloads with distinct arities — and is strictly better than
+ * the previous behavior of always taking whichever overload happened to
+ * be declared first (docs/sprints/SPRINT-7.md). When the call's own
+ * argument count isn't known, or no arity matches, falls back to the
+ * first same-named method, same as before.
+ */
+function selectOverload(
+  candidates: readonly JavaMethod[],
+  argumentCount: number | undefined,
+): JavaMethod | undefined {
+  if (candidates.length <= 1 || argumentCount === undefined) {
+    return candidates[0];
+  }
+  return candidates.find((candidate) => candidate.parameterCount === argumentCount) ?? candidates[0];
+}
+
 /** Resolves a call's target to a method elsewhere in the parsed project — via a field's declared type for `field.method(...)`, or the owning type itself for a bare `method(...)` self-call. */
 function resolveCall(
   targetName: string,
   methodName: string,
+  argumentCount: number | undefined,
   ownerType: JavaType,
   ownerFile: string,
   typeIndex: ReadonlyMap<string, TypeIndexEntry>,
@@ -133,12 +155,18 @@ function resolveCall(
     targetFile = resolved.relativePath;
   }
 
-  const method = targetType.methods.find((candidate) => candidate.name === methodName);
+  const candidates = targetType.methods.filter((candidate) => candidate.name === methodName);
+  const method = selectOverload(candidates, argumentCount);
   if (!method) {
     return undefined;
   }
 
-  return { type: targetType, file: targetFile, method, key: `${targetType.name}#${method.name}` };
+  return {
+    type: targetType,
+    file: targetFile,
+    method,
+    key: `${targetType.name}#${method.name}#${String(method.line)}`,
+  };
 }
 
 function handleCall(
@@ -156,14 +184,21 @@ function handleCall(
     return;
   }
 
-  const resolution = resolveCall(targetName, methodName, ownerType, ownerFile, ctx.typeIndex);
+  const resolution = resolveCall(
+    targetName,
+    methodName,
+    event.argumentCount,
+    ownerType,
+    ownerFile,
+    ctx.typeIndex,
+  );
   if (resolution && depth < MAX_INLINE_DEPTH && !ctx.visited.has(resolution.key)) {
     ctx.visited.add(resolution.key);
     unroll(resolution.type, resolution.file, resolution.method, depth + 1, ctx);
     return;
   }
 
-  const description = describeCall(methodName, noun);
+  const description = describeCall(methodName, noun, event.firstStringArgument);
   const technicalName = targetName ? `${targetName}.${methodName}(...)` : `${methodName}(...)`;
   addStep(
     ctx,
@@ -171,6 +206,32 @@ function handleCall(
     technicalName,
     sourceOf(ownerFile, event.line, method.name, ownerType.name),
   );
+}
+
+/**
+ * Resolves what a `return` statement's expression evaluates to as a
+ * string literal, if it does at all: either the literal directly
+ * (`event.returnsStringLiteral`), or — the classic
+ * `private static final String VIEW = "...";` idiom — a bare identifier
+ * that names a `static final String` constant on the owning type
+ * (docs/sprints/SPRINT-7.md; found in the user's real AdminController,
+ * whose `return REDIRECT_ADMIN_PRODUCTS;` previously fell all the way
+ * through to a generic "Return Response" step).
+ */
+function resolvedReturnLiteral(event: JavaBodyEvent, ownerType: JavaType): string | undefined {
+  if (event.returnsStringLiteral !== undefined) {
+    return event.returnsStringLiteral;
+  }
+  if (event.returnsIdentifier === undefined) {
+    return undefined;
+  }
+  return ownerType.fields.find((field) => field.name === event.returnsIdentifier)?.stringConstantValue;
+}
+
+function returnLiteralTechnicalName(event: JavaBodyEvent, literal: string): string {
+  return event.returnsStringLiteral !== undefined
+    ? `return "${literal}"`
+    : `return ${event.returnsIdentifier ?? ''} /* "${literal}" */`;
 }
 
 function handleReturn(
@@ -182,17 +243,35 @@ function handleReturn(
   noun: string,
   ctx: FlowContext,
 ): void {
+  const literal = resolvedReturnLiteral(event, ownerType);
+
   if (depth === 0) {
-    const description = describeReturn(event.returnsCallTarget, event.returnsCallMethod);
-    const technicalName = event.returnsCallTarget
-      ? `return ${event.returnsCallTarget}.${event.returnsCallMethod ?? ''}(...)`
-      : event.returnsCallMethod
-        ? `return ${event.returnsCallMethod}(...)`
-        : 'return ...';
+    const description =
+      literal !== undefined
+        ? describeViewReturn(literal)
+        : describeReturn(event.returnsCallTarget, event.returnsCallMethod);
+    const technicalName =
+      literal !== undefined
+        ? returnLiteralTechnicalName(event, literal)
+        : event.returnsCallTarget
+          ? `return ${event.returnsCallTarget}.${event.returnsCallMethod ?? ''}(...)`
+          : event.returnsCallMethod
+            ? `return ${event.returnsCallMethod}(...)`
+            : 'return ...';
     addStep(
       ctx,
       description,
       technicalName,
+      sourceOf(ownerFile, event.line, method.name, ownerType.name),
+    );
+    return;
+  }
+
+  if (literal !== undefined) {
+    addStep(
+      ctx,
+      describeViewReturn(literal),
+      returnLiteralTechnicalName(event, literal),
       sourceOf(ownerFile, event.line, method.name, ownerType.name),
     );
     return;
@@ -207,7 +286,10 @@ function handleReturn(
 
   const targetName = event.returnsCallTarget ?? '';
   const methodName = event.returnsCallMethod ?? '';
-  const resolution = resolveCall(targetName, methodName, ownerType, ownerFile, ctx.typeIndex);
+  // The return-expression call shape doesn't capture an argument count
+  // (unlike a statement-level `call` event), so an overload here always
+  // falls back to the first same-named candidate — see `selectOverload`.
+  const resolution = resolveCall(targetName, methodName, undefined, ownerType, ownerFile, ctx.typeIndex);
   if (resolution && depth < MAX_INLINE_DEPTH && !ctx.visited.has(resolution.key)) {
     ctx.visited.add(resolution.key);
     unroll(resolution.type, resolution.file, resolution.method, depth + 1, ctx);
@@ -275,7 +357,11 @@ function handleIf(
     const throwEvent = events[next];
     if (throwEvent && throwEvent.kind === 'throw') {
       ctx.nextEdge = { type: 'error', label: guardLabel };
-      const description = describeThrow(throwEvent.exceptionType ?? 'Exception', noun);
+      const description = describeThrow(
+        throwEvent.exceptionType ?? 'Exception',
+        noun,
+        throwEvent.exceptionMessage,
+      );
       addStep(
         ctx,
         description,
@@ -342,7 +428,7 @@ function unroll(
       continue;
     }
     if (event.kind === 'throw') {
-      const description = describeThrow(event.exceptionType ?? 'Exception', noun);
+      const description = describeThrow(event.exceptionType ?? 'Exception', noun, event.exceptionMessage);
       addStep(
         ctx,
         description,
@@ -398,7 +484,20 @@ export function inferBusinessFlow(
 ): Result<BusinessFlow, AnalysisError> {
   const entryFile = projectFiles.find((file) => file.relativePath === api.file);
   const entryType = entryFile?.model.types.find((type) => type.name === api.className);
-  const entryMethod = entryType?.methods.find((candidate) => candidate.name === api.methodName);
+  // Matched by declaration line, not just name, when more than one
+  // method shares it: two `@GetMapping`/`@PostMapping` handlers sharing a
+  // name (e.g. a form-showing `addProduct()` and a form-submitting
+  // `addProduct(...)` overload) are an ordinary Spring MVC pattern, and
+  // `api.line` — captured from this exact method at discovery time
+  // (discover-apis-in-file.ts) — is the only way to tell them apart
+  // (docs/sprints/SPRINT-7.md; found by reading the user's real
+  // E-commerce-project-springBoot controller). Falls back to the first
+  // same-named method when no line matches, so a caller that doesn't
+  // have precise line info (a hand-built `DiscoveredApi`, say) still
+  // resolves the unambiguous, non-overloaded case.
+  const entryCandidates = entryType?.methods.filter((candidate) => candidate.name === api.methodName) ?? [];
+  const entryMethod =
+    entryCandidates.find((candidate) => candidate.line === api.line) ?? entryCandidates[0];
 
   if (!entryFile || !entryType || !entryMethod) {
     return err(
@@ -418,7 +517,7 @@ export function inferBusinessFlow(
     typeIndex: buildTypeIndex(projectFiles),
     steps: [],
     edges: [],
-    visited: new Set([`${entryType.name}#${entryMethod.name}`]),
+    visited: new Set([`${entryType.name}#${entryMethod.name}#${String(entryMethod.line)}`]),
     lastStepId: undefined,
     nextEdge: { type: 'sequence' },
     stepCount: 0,

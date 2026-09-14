@@ -46,6 +46,20 @@ export interface JavaBodyEvent {
   readonly methodName?: string | undefined;
   /** 'construct': true when an argument itself looks like an identifier generator (e.g. `UUID.randomUUID()`). */
   readonly looksGenerated?: boolean | undefined;
+  /**
+   * 'call': a leading string-literal argument, when the call's first
+   * argument is a bare string literal or the literal prefix of a
+   * `"literal" + expr` concatenation — e.g. `model.addAttribute("username", ...)`
+   * → `"username"`. Not resolved for a `static final` constant reference
+   * (docs/sprints/SPRINT-7.md's "Explicitly deferred").
+   */
+  readonly firstStringArgument?: string | undefined;
+  /**
+   * 'call': how many arguments the call passes — used to disambiguate an
+   * overloaded target method by arity when more than one method on the
+   * resolved type shares the call's name (docs/sprints/SPRINT-7.md).
+   */
+  readonly argumentCount?: number | undefined;
 
   /** 'if': a best-effort human-readable rendering of the condition. */
   readonly conditionText?: string | undefined;
@@ -56,12 +70,25 @@ export interface JavaBodyEvent {
 
   /** 'throw': the thrown exception's simple type name. */
   readonly exceptionType?: string | undefined;
+  /** 'throw': the exception message, under the same leading-literal rule as `firstStringArgument`. */
+  readonly exceptionMessage?: string | undefined;
 
   /** 'return': the returned expression's call chain, if any (e.g. targetName "ResponseEntity", methodName "ok"). */
   readonly returnsCallTarget?: string | undefined;
   readonly returnsCallMethod?: string | undefined;
   /** 'return': true for a bare `return null;`. */
   readonly returnsNullLiteral?: boolean | undefined;
+  /** 'return': the returned string literal, when the return expression is (or starts with) one — typically a view name, e.g. `"redirect:/x"`. */
+  readonly returnsStringLiteral?: string | undefined;
+  /**
+   * 'return': the returned expression's name, when it's nothing but a
+   * bare identifier — e.g. `return REDIRECT_ADMIN_PRODUCTS;` → `"REDIRECT_ADMIN_PRODUCTS"`.
+   * Could be a local variable, a field, or a `static final` constant;
+   * `packages/business-analyzer` resolves it against the owning type's
+   * `JavaField.stringConstantValue` when there is one — the classic
+   * `private static final String VIEW = "..."` idiom (docs/sprints/SPRINT-7.md).
+   */
+  readonly returnsIdentifier?: string | undefined;
 }
 
 export interface JavaMethod {
@@ -69,6 +96,14 @@ export interface JavaMethod {
   readonly annotations: readonly JavaAnnotation[];
   /** The method declarator's source line. Not a precise start/end range yet — see ADR-006. */
   readonly line: number;
+  /**
+   * How many formal parameters the method declares (varargs counts as
+   * one). Overload resolution has no type information to go on, so this
+   * is the only disambiguator available when two methods on the same
+   * type share a name — e.g. Spring MVC's common `GET`/`POST`
+   * `addProduct()` / `addProduct(...)` pair (docs/sprints/SPRINT-7.md).
+   */
+  readonly parameterCount: number;
   /** Empty for a method with no body (abstract/interface) or nothing extractable. */
   readonly bodyEvents: readonly JavaBodyEvent[];
 }
@@ -79,6 +114,16 @@ export interface JavaField {
   readonly name: string;
   /** Simple declared type name only, e.g. "CustomerService" or "Map" for `Map<String, Customer>" — no generic args, no import resolution. */
   readonly type: string;
+  /**
+   * The field's initializer, when it's a `static final String` assigned a
+   * literal (or the literal-leading portion of a concatenation) — e.g.
+   * `private static final String VIEW = "productsAdd";`. The common
+   * Java idiom of naming a view/redirect target once and returning the
+   * constant, rather than a literal directly (docs/sprints/SPRINT-7.md;
+   * found in the user's real AdminController). Undefined for every other
+   * field, including a non-`static`/non-`final` one of type `String`.
+   */
+  readonly stringConstantValue?: string | undefined;
 }
 
 export interface JavaType {

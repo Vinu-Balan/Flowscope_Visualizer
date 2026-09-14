@@ -5,12 +5,15 @@ import type { ElementDefinition } from 'cytoscape';
 export const LOW_CONFIDENCE_THRESHOLD = 0.6;
 
 /**
- * Flowchart shape vocabulary: a decision is a diamond (the universal
- * flowchart convention), everything else is a rounded rectangle — see
- * "Visual language" in docs/sprints/SPRINT-6.md.
+ * Flowchart shape vocabulary: a decision is a hexagon, everything else is
+ * a rounded rectangle. Sprint 6 used the traditional diamond, but a
+ * diamond's usable text area is far smaller than its bounding box — real
+ * decision text ("Check if Customer Exists by Email") was cramped and
+ * hard to read. A hexagon keeps decisions visually distinct without that
+ * penalty (docs/sprints/SPRINT-7.md).
  */
 export const NODE_SHAPE: Record<BegNodeType, string> = {
-  decision: 'diamond',
+  decision: 'hexagon',
   'business-step': 'round-rectangle',
   validation: 'round-rectangle',
   'database-operation': 'round-rectangle',
