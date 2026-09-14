@@ -413,20 +413,32 @@ function processIf(ifStatement: unknown, events: JavaBodyEvent[], depth: number)
   const thenStatement = childNode(ifStatement, 'statement');
   const firstThenKind = thenStatement ? firstStatementKindOf(thenStatement) : undefined;
 
+  // Extracted into a scratch array first (not appended directly) so the
+  // 'if' event can record exactly how many of the following events
+  // belong to the then-branch — the flat event list otherwise has no
+  // block boundaries, so a caller couldn't tell "part of the then-branch"
+  // from "comes after the if" for a branch that isn't a bare
+  // throw/return (docs/sprints/SPRINT-8.md; found via a real `if` with no
+  // `else` whose body just sets a value and falls through — every event
+  // after it was wrongly absorbed into the "continue" branch).
+  const thenEvents: JavaBodyEvent[] = [];
+  if (thenStatement) {
+    processStatement(thenStatement, thenEvents, depth + 1);
+  }
+
   events.push({
     kind: 'if',
     line,
     conditionText,
     guardThrows: firstThenKind === 'throw',
     guardReturns: firstThenKind === 'return',
+    thenEventCount: thenEvents.length,
   });
 
   if (conditionExpression) {
     emitExpressionEvent(conditionExpression, events);
   }
-  if (thenStatement) {
-    processStatement(thenStatement, events, depth + 1);
-  }
+  events.push(...thenEvents);
 }
 
 function processStatement(statementNode: unknown, events: JavaBodyEvent[], depth: number): void {

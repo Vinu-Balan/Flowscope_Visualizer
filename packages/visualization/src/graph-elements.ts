@@ -50,6 +50,10 @@ export const NODE_COLOR: Record<BegNodeType, string> = {
 const EDGE_COLOR: Partial<Record<BegEdgeType, string>> = {
   error: '#dc2626',
   success: '#059669',
+  // A decision's conditional side-effect branch (docs/sprints/SPRINT-8.md) —
+  // matches the decision hexagon's own accent color, distinct from the
+  // exit-the-method red/green of error/success.
+  conditional: '#d97706',
 };
 
 /** Cytoscape node/edge `data` shape — exported so consumers (styling, click handlers) can read it back typed instead of casting `unknown`. */

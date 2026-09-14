@@ -265,3 +265,53 @@ describe('inferBusinessFlow — private helper self-calls and constant-named ret
     expect(names).not.toContain('Return Response');
   });
 });
+
+const LOGIN_SOURCE = `
+  package com.example;
+
+  @Controller
+  public class UserController {
+      @GetMapping("/login")
+      public ModelAndView userLogin(String error) {
+          ModelAndView mv = new ModelAndView("userLogin");
+          if ("true".equals(error)) {
+              mv.addObject("msg", "Please enter correct email and password");
+          }
+          return mv;
+      }
+  }
+`;
+
+describe('inferBusinessFlow — a no-else if whose body falls through (docs/sprints/SPRINT-8.md)', () => {
+  const LOGIN_FILES = [projectFile('UserController.java', LOGIN_SOURCE)];
+
+  it('gives the decision two edges: the condition-true branch and the skip branch, correctly labeled', () => {
+    // The real bug reported: a guard with no throw/return (just a side
+    // effect, then fallthrough) was rendered with only ONE edge, and it
+    // was mislabeled — the step that only runs when the condition is
+    // true was shown as the "No" branch.
+    const result = inferBusinessFlow(
+      api({ methodName: 'userLogin', httpMethod: 'GET', path: '/login', className: 'UserController', file: 'UserController.java' }),
+      LOGIN_FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const decision = steps.find((step) => step.type === 'decision');
+    const msgStep = steps.find((step) => step.businessName.includes('msg'));
+    const returnStep = steps.find((step) => step.businessName === 'Return Response');
+    expect(decision).toBeDefined();
+    expect(msgStep).toBeDefined();
+    expect(returnStep).toBeDefined();
+    if (!decision || !msgStep || !returnStep) return;
+
+    const fromDecision = edges.filter((edge) => edge.from === decision.id);
+    expect(fromDecision).toHaveLength(2);
+
+    const toMsg = fromDecision.find((edge) => edge.to === msgStep.id);
+    const toReturn = fromDecision.find((edge) => edge.to === returnStep.id);
+    expect(toMsg?.label).toBe('Yes');
+    expect(toReturn?.label).toBe('No');
+  });
+});

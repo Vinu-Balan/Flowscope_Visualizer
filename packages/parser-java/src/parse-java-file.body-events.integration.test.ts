@@ -42,6 +42,7 @@ describe('parseJavaFile — body events against the real fixture', () => {
         conditionText: 'customer == null',
         guardThrows: false,
         guardReturns: true,
+        thenEventCount: 1,
       },
       {
         kind: 'return',
@@ -66,6 +67,7 @@ describe('parseJavaFile — body events against the real fixture', () => {
         conditionText: 'existsByEmail(...)',
         guardThrows: true,
         guardReturns: false,
+        thenEventCount: 1,
       },
       { kind: 'call', line: 14, targetName: '', methodName: 'existsByEmail', argumentCount: 1 },
       {

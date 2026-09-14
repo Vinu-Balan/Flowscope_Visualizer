@@ -100,6 +100,7 @@ describe('parseJavaFile — method body events', () => {
         conditionText: 'existsByEmail(...)',
         guardThrows: true,
         guardReturns: false,
+        thenEventCount: 1,
       },
       { kind: 'call', line: 4, targetName: '', methodName: 'existsByEmail', argumentCount: 1 },
       { kind: 'throw', line: 5, exceptionType: 'IllegalStateException', exceptionMessage: 'dup' },
@@ -124,6 +125,7 @@ describe('parseJavaFile — method body events', () => {
         conditionText: 'customer == null',
         guardThrows: false,
         guardReturns: true,
+        thenEventCount: 1,
       },
       { kind: 'return', line: 5, returnsNullLiteral: true },
     ]);

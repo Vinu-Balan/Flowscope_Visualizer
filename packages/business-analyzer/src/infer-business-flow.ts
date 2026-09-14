@@ -353,29 +353,27 @@ function handleIf(
   const guardLabel = decision.affirmativeBranch === 'guard' ? 'Yes' : 'No';
   const continueLabel = decision.affirmativeBranch === 'guard' ? 'No' : 'Yes';
 
-  if (ifEvent.guardThrows) {
-    const throwEvent = events[next];
-    if (throwEvent && throwEvent.kind === 'throw') {
-      ctx.nextEdge = { type: 'error', label: guardLabel };
-      const description = describeThrow(
-        throwEvent.exceptionType ?? 'Exception',
-        noun,
-        throwEvent.exceptionMessage,
-      );
-      addStep(
-        ctx,
-        description,
-        `throw ${throwEvent.exceptionType ?? 'Exception'}`,
-        sourceOf(ownerFile, throwEvent.line, method.name, ownerType.name),
-      );
-      next += 1;
-    }
-  } else if (ifEvent.guardReturns) {
-    const returnEvent = events[next];
-    if (returnEvent && returnEvent.kind === 'return') {
-      ctx.nextEdge = { type: 'error', label: guardLabel };
-      handleReturn(returnEvent, ownerType, ownerFile, method, depth, noun, ctx);
-      next += 1;
+  // How many of the events starting at `next` belong to the then-branch —
+  // covers any then-branch (not just a bare throw/return) since
+  // SPRINT-8.md; see `JavaBodyEvent.thenEventCount`.
+  const thenEventCount = ifEvent.thenEventCount ?? 0;
+  const thenEnd = next + thenEventCount;
+
+  if (thenEventCount > 0) {
+    // A throw/return guard is a dead end (the branch exits the method);
+    // anything else is a conditional side effect that falls through to
+    // the same continuation as the other branch — the flat single-cursor
+    // model can't represent that merge, so (like the guard case) what
+    // follows the `if` is drawn resuming only from the decision's
+    // continue edge below. Still a real improvement over the previous
+    // behavior, which absorbed the then-branch's own steps into that
+    // continue edge unconditionally and mislabeled them (found via a
+    // real no-else `if` whose body just set a value and fell through).
+    const branchEdgeType = ifEvent.guardThrows || ifEvent.guardReturns ? 'error' : 'conditional';
+    ctx.nextEdge = { type: branchEdgeType, label: guardLabel };
+    let i = next;
+    while (i < thenEnd) {
+      i = processEventAt(events, i, ownerType, ownerFile, method, depth, noun, ctx);
     }
   }
 
@@ -384,7 +382,55 @@ function handleIf(
   ctx.lastStepId = decisionId;
   ctx.nextEdge = { type: 'success', label: continueLabel };
 
-  return next;
+  return thenEnd;
+}
+
+/** Dispatches one body event by kind, advancing the flow — shared by `unroll`'s top-level loop and `handleIf`'s branch walks so a nested `if` composes naturally through the same recursion. */
+function processEventAt(
+  events: readonly JavaBodyEvent[],
+  index: number,
+  ownerType: JavaType,
+  ownerFile: string,
+  method: JavaMethod,
+  depth: number,
+  noun: string,
+  ctx: FlowContext,
+): number {
+  const event = events[index];
+  if (!event) {
+    return index + 1;
+  }
+
+  if (event.kind === 'if') {
+    return handleIf(events, index, ownerType, ownerFile, method, depth, noun, ctx);
+  }
+  if (event.kind === 'call') {
+    handleCall(event, ownerType, ownerFile, method, depth, noun, ctx);
+    return index + 1;
+  }
+  if (event.kind === 'construct') {
+    const description = describeConstruct(event.methodName ?? 'Object', Boolean(event.looksGenerated));
+    addStep(
+      ctx,
+      description,
+      `new ${event.methodName ?? 'Object'}(...)`,
+      sourceOf(ownerFile, event.line, method.name, ownerType.name),
+    );
+    return index + 1;
+  }
+  if (event.kind === 'throw') {
+    const description = describeThrow(event.exceptionType ?? 'Exception', noun, event.exceptionMessage);
+    addStep(
+      ctx,
+      description,
+      `throw ${event.exceptionType ?? 'Exception'}`,
+      sourceOf(ownerFile, event.line, method.name, ownerType.name),
+    );
+    return index + 1;
+  }
+  // Only 'return' remains among JavaBodyEventKind's variants at this point.
+  handleReturn(event, ownerType, ownerFile, method, depth, noun, ctx);
+  return index + 1;
 }
 
 function unroll(
@@ -399,48 +445,7 @@ function unroll(
   let index = 0;
 
   while (index < events.length) {
-    const event = events[index];
-    if (!event) {
-      break;
-    }
-
-    if (event.kind === 'if') {
-      index = handleIf(events, index, ownerType, ownerFile, method, depth, noun, ctx);
-      continue;
-    }
-    if (event.kind === 'call') {
-      handleCall(event, ownerType, ownerFile, method, depth, noun, ctx);
-      index += 1;
-      continue;
-    }
-    if (event.kind === 'construct') {
-      const description = describeConstruct(
-        event.methodName ?? 'Object',
-        Boolean(event.looksGenerated),
-      );
-      addStep(
-        ctx,
-        description,
-        `new ${event.methodName ?? 'Object'}(...)`,
-        sourceOf(ownerFile, event.line, method.name, ownerType.name),
-      );
-      index += 1;
-      continue;
-    }
-    if (event.kind === 'throw') {
-      const description = describeThrow(event.exceptionType ?? 'Exception', noun, event.exceptionMessage);
-      addStep(
-        ctx,
-        description,
-        `throw ${event.exceptionType ?? 'Exception'}`,
-        sourceOf(ownerFile, event.line, method.name, ownerType.name),
-      );
-      index += 1;
-      continue;
-    }
-    // Only 'return' remains among JavaBodyEventKind's variants at this point.
-    handleReturn(event, ownerType, ownerFile, method, depth, noun, ctx);
-    index += 1;
+    index = processEventAt(events, index, ownerType, ownerFile, method, depth, noun, ctx);
   }
 }
 

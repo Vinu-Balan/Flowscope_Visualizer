@@ -67,6 +67,15 @@ export interface JavaBodyEvent {
   readonly guardThrows?: boolean | undefined;
   /** 'if': true when the then-branch's first statement is a `return`. */
   readonly guardReturns?: boolean | undefined;
+  /**
+   * 'if': how many of the events immediately following this one (after
+   * this condition's own 'call' event, if any) belong to the then-branch —
+   * the flat event list has no block boundaries otherwise, so this is how
+   * a consumer knows where the branch ends and what comes after the `if`
+   * begins. Covers any then-branch, not just a bare throw/return
+   * (docs/sprints/SPRINT-8.md).
+   */
+  readonly thenEventCount?: number | undefined;
 
   /** 'throw': the thrown exception's simple type name. */
   readonly exceptionType?: string | undefined;
