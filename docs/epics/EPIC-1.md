@@ -40,7 +40,7 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
 `docs/ROADMAP.md`'s ten-weekend plan:
 
 1. Desktop foundation (`SPRINT-1.md`) — complete
-2. Project opening
+2. Project opening (`SPRINT-2.md`) — complete
 3. Project scanner
 4. API discovery
 5. Business flow engine
@@ -75,7 +75,8 @@ conditional branches, exceptions, external calls, and transactions:
 
 ## Status
 
-In progress. SPRINT-1 (desktop foundation) is complete and verified — see
-`docs/sprints/SPRINT-1.md`. Project scanning/analysis and everything it
-unlocks (APIs, business flows, Inspector, source navigation) has not
-started; that's SPRINT-2 onward.
+In progress. SPRINT-1 (desktop foundation) and SPRINT-2 (project opening —
+real Maven/Gradle validation, replacing the unvalidated folder pick from
+Sprint 1) are complete and verified. Project scanning/analysis and
+everything it unlocks (APIs, business flows, Inspector, source navigation)
+has not started; that's SPRINT-3 onward.

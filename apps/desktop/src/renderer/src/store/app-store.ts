@@ -1,3 +1,4 @@
+import type { ValidatedProject } from '@flowscope/workspace/project';
 import { create } from 'zustand';
 
 export type SidebarTab = 'architecture' | 'trace-logs';
@@ -12,10 +13,9 @@ interface AppState {
   readonly settingsDialogOpen: boolean;
   setSettingsDialogOpen: (open: boolean) => void;
 
-  /** The folder the user last opened via project.open — Sprint 1 does not
-   *  validate or analyze it yet (docs/sprints/SPRINT-1.md). */
-  readonly currentProjectPath: string | null;
-  openProject: (path: string) => void;
+  /** The last project that passed `project.validate` (docs/sprints/SPRINT-2.md). */
+  readonly currentProject: ValidatedProject | null;
+  setCurrentProject: (project: ValidatedProject) => void;
   closeProject: () => void;
 }
 
@@ -35,11 +35,11 @@ export const useAppStore = create<AppState>((set) => ({
     set({ settingsDialogOpen: open });
   },
 
-  currentProjectPath: null,
-  openProject: (path) => {
-    set({ currentProjectPath: path });
+  currentProject: null,
+  setCurrentProject: (project) => {
+    set({ currentProject: project });
   },
   closeProject: () => {
-    set({ currentProjectPath: null });
+    set({ currentProject: null });
   },
 }));

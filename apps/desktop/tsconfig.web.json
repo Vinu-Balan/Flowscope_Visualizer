@@ -9,6 +9,8 @@
       "@flowscope/config": ["../../packages/config/src/index.ts"],
       "@flowscope/config/*": ["../../packages/config/src/*"],
       "@flowscope/ui": ["../../packages/ui/src/index.ts"],
+      "@flowscope/workspace": ["../../packages/workspace/src/index.ts"],
+      "@flowscope/workspace/*": ["../../packages/workspace/src/*"],
       "@renderer/*": ["./src/renderer/src/*"]
     }
   },

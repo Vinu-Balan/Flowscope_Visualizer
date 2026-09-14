@@ -1,6 +1,11 @@
 import type { z } from 'zod';
 import { IPC_CHANNELS } from './channels';
-import { ProjectOpenRequestSchema, ProjectOpenResponseSchema } from './contracts/project';
+import {
+  ProjectOpenRequestSchema,
+  ProjectOpenResponseSchema,
+  ProjectValidateRequestSchema,
+  ProjectValidateResponseSchema,
+} from './contracts/project';
 import {
   SettingsGetRequestSchema,
   SettingsGetResponseSchema,
@@ -23,6 +28,10 @@ export const IPC_CONTRACT = {
   [IPC_CHANNELS.projectOpen]: {
     request: ProjectOpenRequestSchema,
     response: ProjectOpenResponseSchema,
+  },
+  [IPC_CHANNELS.projectValidate]: {
+    request: ProjectValidateRequestSchema,
+    response: ProjectValidateResponseSchema,
   },
   [IPC_CHANNELS.settingsGet]: {
     request: SettingsGetRequestSchema,

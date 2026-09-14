@@ -8,7 +8,9 @@
       "@flowscope/logging": ["../../packages/logging/src/index.ts"],
       "@flowscope/config": ["../../packages/config/src/index.ts"],
       "@flowscope/config/*": ["../../packages/config/src/*"],
-      "@flowscope/ipc": ["../../packages/ipc/src/index.ts"]
+      "@flowscope/ipc": ["../../packages/ipc/src/index.ts"],
+      "@flowscope/workspace": ["../../packages/workspace/src/index.ts"],
+      "@flowscope/workspace/*": ["../../packages/workspace/src/*"]
     }
   },
   "include": ["src/main/**/*", "src/preload/**/*"]

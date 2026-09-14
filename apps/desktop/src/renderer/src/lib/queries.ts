@@ -40,3 +40,20 @@ export function useOpenProjectMutation() {
     mutationFn: () => getFlowScopeApi().openProject(),
   });
 }
+
+/**
+ * Validates a project folder (docs/sprints/SPRINT-2.md). A successful
+ * validation updates the main process's recent-projects list, so this
+ * invalidates the cached settings to pick that change up.
+ */
+export function useValidateProjectMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (path: string) => getFlowScopeApi().validateProject(path),
+    onSuccess: (result) => {
+      if (result.status === 'valid') {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.settings });
+      }
+    },
+  });
+}

@@ -21,6 +21,7 @@
     "@flowscope/ipc": "workspace:*",
     "@flowscope/logging": "workspace:*",
     "@flowscope/ui": "workspace:*",
+    "@flowscope/workspace": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "@tanstack/react-router": "^1.92.0",
     "cmdk": "^1.0.4",

@@ -93,15 +93,23 @@ cross-boundary calls are explicit, named, typed operations defined in
 ## Status
 
 `apps/desktop`, `packages/core`, `packages/logging`, `packages/config`,
-`packages/ipc`, and `packages/ui` are implemented (SPRINT-1 — see
-`docs/sprints/SPRINT-1.md`). `apps/parser-engine` and the remaining
-`packages/*` (`shared`, `visualization`, `graph-schema`, `graph-engine`,
-`parser-core`, `parser-java`, `parser-spring`, `business-analyzer`,
-`workspace`, `scanner`) are still scaffolding only, pending SPRINT-2 onward.
+`packages/ipc`, `packages/workspace`, and `packages/ui` are implemented
+(SPRINT-1, SPRINT-2 — see `docs/sprints/`). `apps/parser-engine` and the
+remaining `packages/*` (`shared`, `visualization`, `graph-schema`,
+`graph-engine`, `parser-core`, `parser-java`, `parser-spring`,
+`business-analyzer`, `scanner`) are still scaffolding only, pending
+SPRINT-3 onward.
 
-One structural refinement worth noting: `packages/config` publishes two
-entry points, not one — `@flowscope/config` (the full barrel, main-process
-only) and `@flowscope/config/settings` (the zod schema, Node-free, safe for
-the sandboxed preload script or any future renderer code). See the comment
-atop `packages/config/src/settings.ts` and the "found during implementation"
-note in `docs/sprints/SPRINT-1.md` for why.
+Two structural refinements worth noting, both the same pattern for the
+same reason — keep `node:fs` out of anything the sandboxed preload script
+might import — so any future package with both a pure schema/type surface
+and a Node-only implementation should follow it too:
+
+- `packages/config` publishes `@flowscope/config` (the full barrel,
+  main-process only) and `@flowscope/config/settings` (the zod schema,
+  Node-free). See the comment atop `packages/config/src/settings.ts` and
+  the "found during implementation" note in `docs/sprints/SPRINT-1.md`.
+- `packages/workspace` publishes `@flowscope/workspace` (the full barrel,
+  including the Node-only `validateProject`) and
+  `@flowscope/workspace/project` (the zod schema for `ValidatedProject`,
+  Node-free). See the comment atop `packages/workspace/src/project.ts`.

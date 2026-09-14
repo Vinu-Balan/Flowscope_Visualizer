@@ -3,6 +3,8 @@ import { withRecentProject } from '@flowscope/config';
 import {
   IPC_CHANNELS,
   ProjectOpenResponseSchema,
+  ProjectValidateRequestSchema,
+  ProjectValidateResponseSchema,
   SettingsGetResponseSchema,
   SettingsUpdateRequestSchema,
   SettingsUpdateResponseSchema,
@@ -10,6 +12,7 @@ import {
   parseOrThrow,
 } from '@flowscope/ipc';
 import type { Logger } from '@flowscope/logging';
+import { validateProject } from '@flowscope/workspace';
 import { app, dialog, ipcMain, type BrowserWindow } from 'electron';
 
 export interface RegisterIpcHandlersOptions {
@@ -64,17 +67,52 @@ export function registerIpcHandlers({
 
     log.info('project.open selected a directory', { path: selectedPath });
 
+    return parseOrThrow(
+      ProjectOpenResponseSchema,
+      { canceled: false, path: selectedPath },
+      { channel: IPC_CHANNELS.projectOpen, direction: 'response' },
+    );
+  });
+
+  ipcMain.handle(IPC_CHANNELS.projectValidate, async (_event, rawRequest: unknown) => {
+    const request = parseOrThrow(ProjectValidateRequestSchema, rawRequest, {
+      channel: IPC_CHANNELS.projectValidate,
+      direction: 'request',
+    });
+
+    const result = await validateProject(request.path);
+
+    if (!result.ok) {
+      log.info('project.validate rejected a path', {
+        path: request.path,
+        code: result.error.code,
+      });
+      return parseOrThrow(
+        ProjectValidateResponseSchema,
+        { status: 'invalid', code: result.error.code, message: result.error.message },
+        { channel: IPC_CHANNELS.projectValidate, direction: 'response' },
+      );
+    }
+
+    log.info('project.validate accepted a project', {
+      path: result.value.path,
+      buildSystem: result.value.buildSystem,
+      looksLikeSpringBoot: result.value.looksLikeSpringBoot,
+    });
+
+    // Only projects that actually validate make it into "recent" — an
+    // invalid folder should never show up there (docs/sprints/SPRINT-2.md).
     const updateResult = await settings.update({
-      recentProjects: withRecentProject(settings.current.recentProjects, selectedPath),
+      recentProjects: withRecentProject(settings.current.recentProjects, result.value.path),
     });
     if (!updateResult.ok) {
       log.warn('failed to record recent project', { error: updateResult.error.toJSON() });
     }
 
     return parseOrThrow(
-      ProjectOpenResponseSchema,
-      { canceled: false, path: selectedPath },
-      { channel: IPC_CHANNELS.projectOpen, direction: 'response' },
+      ProjectValidateResponseSchema,
+      { status: 'valid', project: result.value },
+      { channel: IPC_CHANNELS.projectValidate, direction: 'response' },
     );
   });
 

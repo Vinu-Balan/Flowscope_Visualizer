@@ -17,6 +17,7 @@
   "dependencies": {
     "@flowscope/config": "workspace:*",
     "@flowscope/core": "workspace:*",
+    "@flowscope/workspace": "workspace:*",
     "zod": "^3.24.1"
   }
 }

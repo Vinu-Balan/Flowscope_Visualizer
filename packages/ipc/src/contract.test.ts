@@ -31,6 +31,38 @@ describe('IPC_CONTRACT', () => {
     expect(contract.response.safeParse({ canceled: false }).success).toBe(false);
   });
 
+  it('project.validate request requires a non-empty path', () => {
+    const contract = IPC_CONTRACT[IPC_CHANNELS.projectValidate];
+    expect(contract.request.safeParse({ path: '/tmp/project' }).success).toBe(true);
+    expect(contract.request.safeParse({ path: '' }).success).toBe(false);
+    expect(contract.request.safeParse({}).success).toBe(false);
+  });
+
+  it('project.validate response accepts both valid and invalid outcomes', () => {
+    const contract = IPC_CONTRACT[IPC_CHANNELS.projectValidate];
+    expect(
+      contract.response.safeParse({
+        status: 'valid',
+        project: {
+          id: '/tmp/demo',
+          path: '/tmp/demo',
+          name: 'demo',
+          buildSystem: 'maven',
+          buildFile: 'pom.xml',
+          looksLikeSpringBoot: false,
+        },
+      }).success,
+    ).toBe(true);
+    expect(
+      contract.response.safeParse({
+        status: 'invalid',
+        code: 'UNSUPPORTED_PROJECT',
+        message: 'No build file found.',
+      }).success,
+    ).toBe(true);
+    expect(contract.response.safeParse({ status: 'valid' }).success).toBe(false);
+  });
+
   it('settings.get response is the full Settings shape', () => {
     const contract = IPC_CONTRACT[IPC_CHANNELS.settingsGet];
     expect(contract.response.safeParse(DEFAULT_SETTINGS).success).toBe(true);

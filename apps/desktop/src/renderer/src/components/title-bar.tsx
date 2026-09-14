@@ -1,35 +1,26 @@
-import { Button, Kbd, Tooltip, toast } from '@flowscope/ui';
-import { useNavigate } from '@tanstack/react-router';
+import { Button, Kbd, Tooltip } from '@flowscope/ui';
+import { Link } from '@tanstack/react-router';
 import { FolderOpen, Search, Settings as SettingsIcon, Sparkles } from 'lucide-react';
-import { useOpenProjectMutation } from '../lib/queries';
+import { useOpenProjectFlow } from '../lib/use-open-project';
 import { useAppStore } from '../store/app-store';
 
 export function TitleBar() {
-  const navigate = useNavigate();
   const setCommandPaletteOpen = useAppStore((state) => state.setCommandPaletteOpen);
   const setSettingsDialogOpen = useAppStore((state) => state.setSettingsDialogOpen);
-  const setCurrentProject = useAppStore((state) => state.openProject);
-  const openProject = useOpenProjectMutation();
-
-  async function handleOpenProject(): Promise<void> {
-    try {
-      const result = await openProject.mutateAsync();
-      if (result.canceled) {
-        return;
-      }
-      setCurrentProject(result.path);
-      await navigate({ to: '/workspace' });
-    } catch {
-      toast({ title: 'Could not open project', variant: 'error' });
-    }
-  }
+  const currentProject = useAppStore((state) => state.currentProject);
+  const { openViaDialog, isPending } = useOpenProjectFlow();
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-surface px-3">
-      <div className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
-        <Sparkles className="h-4 w-4 text-accent" />
-        FlowScope
-      </div>
+      <Tooltip content="Back to Welcome">
+        <Link
+          to="/"
+          className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] font-semibold text-foreground transition-colors hover:bg-surface-hover"
+        >
+          <Sparkles className="h-4 w-4 text-accent" />
+          FlowScope
+        </Link>
+      </Tooltip>
 
       <div className="mx-1 h-4 w-px bg-border" />
 
@@ -43,11 +34,11 @@ export function TitleBar() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => void handleOpenProject()}
-          disabled={openProject.isPending}
+          onClick={() => void openViaDialog()}
+          disabled={isPending}
         >
           <FolderOpen className="h-3.5 w-3.5" />
-          {openProject.isPending ? 'Opening…' : 'Open Project'}
+          {isPending ? 'Opening…' : 'Open Project'}
         </Button>
       </Tooltip>
 
@@ -60,7 +51,12 @@ export function TitleBar() {
         </span>
       </Tooltip>
 
-      <div className="flex-1" />
+      <div
+        className="min-w-0 flex-1 truncate px-2 text-center text-[12px] text-muted-foreground"
+        title={currentProject?.path}
+      >
+        {currentProject?.name}
+      </div>
 
       <Tooltip
         content={

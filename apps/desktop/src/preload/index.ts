@@ -2,6 +2,8 @@ import type { Settings, SettingsUpdate } from '@flowscope/config';
 import {
   IPC_CHANNELS,
   ProjectOpenResponseSchema,
+  ProjectValidateRequestSchema,
+  ProjectValidateResponseSchema,
   SettingsGetResponseSchema,
   SettingsUpdateRequestSchema,
   SettingsUpdateResponseSchema,
@@ -10,6 +12,7 @@ import {
   type ProjectOpenResponse,
   type SystemPingResponse,
 } from '@flowscope/ipc';
+import type { ProjectValidationResult } from '@flowscope/workspace/project';
 import { contextBridge, ipcRenderer } from 'electron';
 
 /**
@@ -33,6 +36,19 @@ const flowscopeApi = {
     const raw: unknown = await ipcRenderer.invoke(IPC_CHANNELS.projectOpen);
     return parseOrThrow(ProjectOpenResponseSchema, raw, {
       channel: IPC_CHANNELS.projectOpen,
+      direction: 'response',
+    });
+  },
+
+  async validateProject(path: string): Promise<ProjectValidationResult> {
+    const request = parseOrThrow(
+      ProjectValidateRequestSchema,
+      { path },
+      { channel: IPC_CHANNELS.projectValidate, direction: 'request' },
+    );
+    const raw: unknown = await ipcRenderer.invoke(IPC_CHANNELS.projectValidate, request);
+    return parseOrThrow(ProjectValidateResponseSchema, raw, {
+      channel: IPC_CHANNELS.projectValidate,
       direction: 'response',
     });
   },

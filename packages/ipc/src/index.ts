@@ -7,7 +7,12 @@ export { parseOrThrow } from './validate';
 export { SystemPingRequestSchema, SystemPingResponseSchema } from './contracts/system';
 export type { SystemPingResponse } from './contracts/system';
 
-export { ProjectOpenRequestSchema, ProjectOpenResponseSchema } from './contracts/project';
+export {
+  ProjectOpenRequestSchema,
+  ProjectOpenResponseSchema,
+  ProjectValidateRequestSchema,
+  ProjectValidateResponseSchema,
+} from './contracts/project';
 export type { ProjectOpenResponse } from './contracts/project';
 
 export {

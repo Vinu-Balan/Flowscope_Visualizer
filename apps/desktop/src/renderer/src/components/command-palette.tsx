@@ -1,5 +1,4 @@
 import { Kbd } from '@flowscope/ui';
-import { useNavigate } from '@tanstack/react-router';
 import { Command } from 'cmdk';
 import {
   FolderOpen,
@@ -10,7 +9,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
-import { useOpenProjectMutation, useUpdateSettingsMutation } from '../lib/queries';
+import { useUpdateSettingsMutation } from '../lib/queries';
+import { useOpenProjectFlow } from '../lib/use-open-project';
 import { useAppStore } from '../store/app-store';
 
 interface CommandItem {
@@ -25,9 +25,7 @@ export function CommandPalette() {
   const open = useAppStore((state) => state.commandPaletteOpen);
   const setOpen = useAppStore((state) => state.setCommandPaletteOpen);
   const setSettingsOpen = useAppStore((state) => state.setSettingsDialogOpen);
-  const setCurrentProject = useAppStore((state) => state.openProject);
-  const navigate = useNavigate();
-  const openProject = useOpenProjectMutation();
+  const { openViaDialog } = useOpenProjectFlow();
   const updateSettings = useUpdateSettingsMutation();
 
   const items = useMemo<CommandItem[]>(
@@ -39,11 +37,7 @@ export function CommandPalette() {
         shortcut: ['Ctrl', 'O'],
         run: async () => {
           setOpen(false);
-          const result = await openProject.mutateAsync();
-          if (!result.canceled) {
-            setCurrentProject(result.path);
-            await navigate({ to: '/workspace' });
-          }
+          await openViaDialog();
         },
       },
       {
@@ -84,7 +78,7 @@ export function CommandPalette() {
         },
       },
     ],
-    [navigate, openProject, setCurrentProject, setOpen, setSettingsOpen, updateSettings],
+    [openViaDialog, setOpen, setSettingsOpen, updateSettings],
   );
 
   return (

@@ -1,5 +1,15 @@
+import type { ValidatedProject } from '@flowscope/workspace/project';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useAppStore } from './app-store';
+
+const sampleProject: ValidatedProject = {
+  id: '/tmp/my-project',
+  path: '/tmp/my-project',
+  name: 'my-project',
+  buildSystem: 'maven',
+  buildFile: 'pom.xml',
+  looksLikeSpringBoot: true,
+};
 
 describe('useAppStore', () => {
   beforeEach(() => {
@@ -7,7 +17,7 @@ describe('useAppStore', () => {
       sidebarTab: 'architecture',
       commandPaletteOpen: false,
       settingsDialogOpen: false,
-      currentProjectPath: null,
+      currentProject: null,
     });
   });
 
@@ -16,7 +26,7 @@ describe('useAppStore', () => {
     expect(state.sidebarTab).toBe('architecture');
     expect(state.commandPaletteOpen).toBe(false);
     expect(state.settingsDialogOpen).toBe(false);
-    expect(state.currentProjectPath).toBeNull();
+    expect(state.currentProject).toBeNull();
   });
 
   it('setSidebarTab switches tabs', () => {
@@ -24,12 +34,12 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().sidebarTab).toBe('trace-logs');
   });
 
-  it('openProject / closeProject track the current project path', () => {
-    useAppStore.getState().openProject('/tmp/my-project');
-    expect(useAppStore.getState().currentProjectPath).toBe('/tmp/my-project');
+  it('setCurrentProject / closeProject track the validated project', () => {
+    useAppStore.getState().setCurrentProject(sampleProject);
+    expect(useAppStore.getState().currentProject).toEqual(sampleProject);
 
     useAppStore.getState().closeProject();
-    expect(useAppStore.getState().currentProjectPath).toBeNull();
+    expect(useAppStore.getState().currentProject).toBeNull();
   });
 
   it('command palette and settings dialog toggle independently', () => {
