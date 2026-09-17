@@ -41,3 +41,10 @@ name, source file/line) — the node itself stays short and legible, full
 detail lives in that panel. Monaco isn't wired in yet; source navigation
 (a working "Open Source" jump from that panel to the exact file/line)
 lands at Weekend 8.
+
+SPRINT-10 added packaging: `pnpm run dist:win` (`electron-builder`,
+configured in this package's `package.json` `build` field) produces a
+portable, no-install Windows build in `release/` — `build/icon.ico` is
+this app's real icon (generated, not a placeholder), wired into both the
+packaged `.exe` and the dev-mode `BrowserWindow`. No code signing or
+auto-update yet — out of Phase 1 scope.

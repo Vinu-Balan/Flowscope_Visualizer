@@ -54,7 +54,9 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
 7. Inspector
 8. Code navigation
 9. Search & UX polish
-10. Release preparation
+10. Release preparation (`SPRINT-10.md`) — portable Windows package
+    complete, pulled forward ahead of 7–9 on direct request; installer/
+    signing/auto-update still not built, see SPRINT-10.md
 
 ## Test fixtures needed (`MASTER_PLAN.md` §58)
 
@@ -78,7 +80,9 @@ added as later sprints need what they specifically exercise.
       source files.
 - [ ] Business/developer/technical detail levels are switchable without
       re-running analysis.
-- [ ] A packaged Windows installer runs the above end to end.
+- [ ] A packaged Windows installer runs the above end to end (a portable,
+      no-install package exists instead — `SPRINT-10.md`, done first on
+      direct request; a real installer with signing is still open).
 
 ## Status
 
@@ -107,9 +111,12 @@ placeholder), and SPRINT-9 (a real `if`/`else` — not just a guard clause
 — now gives both branches their own steps off the decision, with
 whatever follows resuming from whichever branch doesn't return/throw;
 also fixed a related bug where a non-call condition followed by a
-call-shaped then-branch corrupted the decision's name) are complete and
-verified. Selecting a node already surfaces
+call-shaped then-branch corrupted the decision's name), and SPRINT-10 (a
+portable, no-install Windows package — `electron-builder` configured, a
+real app icon, `release/FlowScope-0.1.0-portable-win-x64.zip` built and
+its `.exe` verified to actually launch and work standalone) are complete
+and verified. Selecting a node already surfaces
 business + technical detail in the side panel, a partial step toward the
 full Inspector acceptance criterion below — the "Open Source" jump to
-Monaco (source navigation isn't wired in yet) is the remaining work,
-next.
+Monaco (source navigation isn't wired in yet) and search are the
+remaining work, next.

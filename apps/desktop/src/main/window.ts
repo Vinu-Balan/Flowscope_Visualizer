@@ -17,6 +17,11 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     backgroundColor: '#17191f',
     autoHideMenuBar: true,
+    // Packaged Windows builds already show the .exe's own icon resource
+    // (electron-builder's `win.icon`, docs/sprints/SPRINT-10.md) — this is
+    // what makes the window/taskbar icon correct in dev mode too, where
+    // there's no packaged .exe to inherit it from.
+    icon: join(__dirname, '../../build/icon.ico'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

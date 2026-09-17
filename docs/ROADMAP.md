@@ -74,9 +74,13 @@ project.
 ## Current status
 
 **Weekends 1–6 (Desktop foundation, Project opening, Project scanner, API
-discovery, Business flow engine, Graph visualization) complete, plus
-three real-world hardening passes (Sprint 7, Sprint 8, Sprint 9)** — see
-`docs/sprints/SPRINT-1.md` through `SPRINT-9.md`. FlowScope launches as a
+discovery, Business flow engine, Graph visualization) complete, three
+real-world hardening passes (Sprint 7, Sprint 8, Sprint 9), and Weekend
+10 (Release preparation) pulled forward on direct request** — see
+`docs/sprints/SPRINT-1.md` through `SPRINT-10.md`. Weekends 7–9
+(Inspector's remaining work, source navigation, search) are still ahead;
+Weekend 10 shipped early because the user asked for a runnable package
+specifically. FlowScope launches as a
 real Electron desktop app: Welcome/Workspace routes, resizable three-pane
 workspace shell, command palette, settings dialog, theme system, and a
 working IPC contract (ping, project-open dialog, project validation,
@@ -125,7 +129,9 @@ in either). All backed by tested
 `packages/business-analyzer`, `packages/visualization`, and `packages/ui`,
 plus the first real test fixture (`tests/fixtures/simple-customer-service`).
 The Inspector's full business/developer/technical level switching and
-source navigation ("Open Source" → Monaco) are still Weekend 7/8's
-remaining work, next (`docs/sprints/SPRINT-8.md`, not yet written —
-SPRINT-7.md was a hardening pass that doesn't map onto a numbered
-weekend, see its own Goal section).
+source navigation ("Open Source" → Monaco), plus search, are still
+Weekend 7/8/9's remaining work, next. A portable, no-install Windows
+build now exists too (`apps/desktop`'s `pnpm run dist:win`,
+`docs/sprints/SPRINT-10.md`) — Weekend 10's deliverable, done ahead of
+7–9 because the user asked for a runnable `.exe` directly; still unsigned
+and without auto-update, both explicitly out of Phase 1 scope.

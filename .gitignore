@@ -11,6 +11,13 @@ release/
 target/
 *.tsbuildinfo
 
+# electron-builder's buildResources dir (apps/desktop/build/) is a real
+# source-asset directory (the app icon), not build output — exempted from
+# the generic build/ ignore above (docs/sprints/SPRINT-10.md).
+!apps/desktop/build/
+apps/desktop/build/*
+!apps/desktop/build/icon.ico
+
 # Rust
 **/target/
 Cargo.lock
