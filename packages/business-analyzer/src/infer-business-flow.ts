@@ -311,13 +311,24 @@ function handleReturn(
   );
 }
 
+/** True for an event kind that ends the method's flow outright — used to decide whether a branch needs a "resume normal flow" cursor after it, or is a genuine dead end. */
+function isTerminalEvent(event: JavaBodyEvent | undefined): boolean {
+  return event?.kind === 'throw' || event?.kind === 'return';
+}
+
 /**
  * The one place a real branch gets built: a decision step, followed by
  * its guard-clause outcome (`throw`/early `return`) wired as one branch,
  * with the code that resumes normal flow wired as the *other* branch —
  * both hanging directly off the decision, not off each other, so the
  * result is an actual diamond, not a flattened chain
- * (docs/sprints/SPRINT-6.md).
+ * (docs/sprints/SPRINT-6.md). Extended in docs/sprints/SPRINT-9.md to a
+ * real `else` branch: both branches hang off the decision with their own
+ * steps: whichever branch doesn't end in a throw/return is where
+ * whatever code follows the whole `if`/`else` resumes from (the flat
+ * single-cursor model can only continue from one place, so when *both*
+ * branches fall through — unusual, but possible — the `else` branch's
+ * tail arbitrarily wins; documented in SPRINT-9.md).
  */
 function handleIf(
   events: readonly JavaBodyEvent[],
@@ -335,14 +346,22 @@ function handleIf(
   }
   let next = index + 1;
 
+  // `hasConditionCall` (not "is the next event call-shaped") is the only
+  // reliable signal here: a condition that isn't itself a call (e.g.
+  // `!exists`) pushes no condition-call event at all, so `events[next]`
+  // is already the then-branch's first statement — which could easily
+  // itself be call-shaped (e.g. `user.setRole(...)`) and get misread as
+  // the condition's own call otherwise (docs/sprints/SPRINT-9.md).
   let conditionCall: { readonly targetName: string; readonly methodName: string } | undefined;
-  const maybeCall = events[next];
-  if (maybeCall && maybeCall.kind === 'call') {
-    conditionCall = {
-      targetName: maybeCall.targetName ?? '',
-      methodName: maybeCall.methodName ?? '',
-    };
-    next += 1;
+  if (ifEvent.hasConditionCall) {
+    const callEvent = events[next];
+    if (callEvent && callEvent.kind === 'call') {
+      conditionCall = {
+        targetName: callEvent.targetName ?? '',
+        methodName: callEvent.methodName ?? '',
+      };
+      next += 1;
+    }
   }
 
   const decision = describeDecision(ifEvent.conditionText ?? '', conditionCall, noun);
@@ -358,28 +377,59 @@ function handleIf(
   const guardLabel = decision.affirmativeBranch === 'guard' ? 'Yes' : 'No';
   const continueLabel = decision.affirmativeBranch === 'guard' ? 'No' : 'Yes';
 
-  // How many of the events starting at `next` belong to the then-branch —
-  // covers any then-branch (not just a bare throw/return) since
-  // SPRINT-8.md; see `JavaBodyEvent.thenEventCount`.
+  // How many of the events starting at `next` belong to the then-branch,
+  // and (when a real `else` is present) the else-branch right after it —
+  // covers any branch shape, not just a bare throw/return (SPRINT-8.md),
+  // extended to `else` in SPRINT-9.md; see `JavaBodyEvent.thenEventCount`/
+  // `elseEventCount`.
   const thenEventCount = ifEvent.thenEventCount ?? 0;
   const thenEnd = next + thenEventCount;
+  const hasElse = ifEvent.elseEventCount !== undefined;
 
+  let thenTailId: string | undefined;
   if (thenEventCount > 0) {
     // A throw/return guard is a dead end (the branch exits the method);
-    // anything else is a conditional side effect that falls through to
-    // the same continuation as the other branch — the flat single-cursor
-    // model can't represent that merge, so (like the guard case) what
-    // follows the `if` is drawn resuming only from the decision's
-    // continue edge below. Still a real improvement over the previous
-    // behavior, which absorbed the then-branch's own steps into that
-    // continue edge unconditionally and mislabeled them (found via a
-    // real no-else `if` whose body just set a value and fell through).
+    // anything else is a conditional side effect. With no `else`, that
+    // side effect falls through to the same continuation as the other
+    // branch — the flat single-cursor model can't represent that merge,
+    // so what follows the `if` is drawn resuming only from the
+    // decision's continue edge below (found via a real no-else `if`
+    // whose body just set a value and fell through). With a real `else`,
+    // see below.
     const branchEdgeType = ifEvent.guardThrows || ifEvent.guardReturns ? 'error' : 'conditional';
     ctx.nextEdge = { type: branchEdgeType, label: guardLabel };
     let i = next;
     while (i < thenEnd) {
       i = processEventAt(events, i, ownerType, ownerFile, method, depth, noun, ctx);
     }
+    thenTailId = ctx.lastStepId;
+  }
+
+  if (hasElse) {
+    const elseEventCount = ifEvent.elseEventCount ?? 0;
+    const elseEnd = thenEnd + elseEventCount;
+
+    ctx.lastStepId = decisionId;
+    let elseTailId: string | undefined = decisionId;
+    if (elseEventCount > 0) {
+      ctx.nextEdge = { type: 'conditional', label: continueLabel };
+      let i = thenEnd;
+      while (i < elseEnd) {
+        i = processEventAt(events, i, ownerType, ownerFile, method, depth, noun, ctx);
+      }
+      elseTailId = ctx.lastStepId;
+    }
+
+    // Whichever branch doesn't end the method is where anything after
+    // the whole if/else resumes from; if both do, nothing should follow
+    // in well-formed code, so the decision is a harmless default. An
+    // empty branch is never terminal — it's a no-op that falls straight
+    // through.
+    const thenEndsMethod = thenEventCount > 0 && isTerminalEvent(events[thenEnd - 1]);
+    const elseEndsMethod = elseEventCount > 0 && isTerminalEvent(events[elseEnd - 1]);
+    ctx.lastStepId = !elseEndsMethod ? elseTailId : !thenEndsMethod ? thenTailId : decisionId;
+    ctx.nextEdge = { type: 'sequence' };
+    return elseEnd;
   }
 
   // Resume the branch that continues normal flow — from the decision,

@@ -57,7 +57,17 @@ also produces two real edges — the then-branch's own steps (bounded by
 `JavaBodyEvent.thenEventCount`) hang off a `'conditional'`-type edge, and
 whatever follows the `if` hangs off the decision's other edge, matching
 the guard-clause case's approach rather than being silently absorbed into
-one mislabeled edge (`docs/sprints/SPRINT-8.md`).
+one mislabeled edge (`docs/sprints/SPRINT-8.md`). A real `else` branch
+(not just a guard clause) gets the same treatment — both branches get
+their own steps off the decision, and whatever follows the whole
+`if`/`else` resumes from whichever branch's last event isn't a
+`throw`/`return` (the single-cursor model can't represent two branches
+merging back together, so when both happen to fall through the `else`
+branch's tail wins, consistently); when both branches *do* end in
+`throw`/`return`, nothing resumes, correctly representing an exhaustive
+if/else (`docs/sprints/SPRINT-9.md`, scoped by surveying real usage: `if`/`else`
+was by far the dominant conditional construct across both of the user's
+projects).
 
 Every step's `technicalName` shows the real argument text the call
 actually passes (e.g. `product.setName(name)`, not
@@ -72,5 +82,5 @@ the node/edge type vocabulary a `BusinessStep` reuses directly) but must
 never depend on React, Electron, or Cytoscape (`docs/ARCHITECTURE.md`).
 
 **Status:** implemented — see `docs/sprints/SPRINT-5.md` / Weekend 5,
-`docs/sprints/SPRINT-6.md` / Weekend 6, `docs/sprints/SPRINT-7.md`, and
-`docs/sprints/SPRINT-8.md`.
+`docs/sprints/SPRINT-6.md` / Weekend 6, `docs/sprints/SPRINT-7.md`,
+`docs/sprints/SPRINT-8.md`, and `docs/sprints/SPRINT-9.md`.

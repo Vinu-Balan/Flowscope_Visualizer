@@ -74,9 +74,9 @@ project.
 ## Current status
 
 **Weekends 1–6 (Desktop foundation, Project opening, Project scanner, API
-discovery, Business flow engine, Graph visualization) complete, plus two
-real-world hardening passes (Sprint 7, Sprint 8)** — see
-`docs/sprints/SPRINT-1.md` through `SPRINT-8.md`. FlowScope launches as a
+discovery, Business flow engine, Graph visualization) complete, plus
+three real-world hardening passes (Sprint 7, Sprint 8, Sprint 9)** — see
+`docs/sprints/SPRINT-1.md` through `SPRINT-9.md`. FlowScope launches as a
 real Electron desktop app: Welcome/Workspace routes, resizable three-pane
 workspace shell, command palette, settings dialog, theme system, and a
 working IPC contract (ping, project-open dialog, project validation,
@@ -111,7 +111,13 @@ produces two correctly labeled edges instead of one mislabeled one, and
 every call/construct/throw/return step's Technical detail shows the real
 argument text (e.g. `product.setName(name)`) instead of a `(...)`
 placeholder, so a developer can see exactly which variable is in play at
-a step without opening the source (SPRINT-8.md). All backed by tested
+a step without opening the source (SPRINT-8.md). A real `if`/`else` (not
+just a guard clause) is modeled too — each branch gets its own steps off
+the decision, and whatever code follows the `if`/`else` resumes from
+whichever branch doesn't return/throw (SPRINT-9.md, scoped by surveying
+real usage across both of the user's projects: `if`/`else` was the
+dominant conditional construct by a wide margin; `switch` never appears
+in either). All backed by tested
 `packages/core`,
 `packages/logging`, `packages/config`, `packages/ipc`,
 `packages/workspace`, `packages/scanner`, `packages/parser-java`,

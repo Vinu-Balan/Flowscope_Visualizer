@@ -50,6 +50,7 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
      SPRINT-7.md's Goal section
    - Branch correctness & argument visibility hardening (`SPRINT-8.md`) —
      complete; same as SPRINT-7, doesn't map onto its own weekend
+   - If/else branch coverage (`SPRINT-9.md`) — complete; same as SPRINT-7/8
 7. Inspector
 8. Code navigation
 9. Search & UX polish
@@ -102,7 +103,12 @@ then-branch is a non-exiting side effect now produces two correctly
 labeled edges instead of one mislabeled one, and every
 call/construct/throw/return step's Technical line shows the real
 argument text, e.g. `product.setName(name)`, instead of a `(...)`
-placeholder) are complete and verified. Selecting a node already surfaces
+placeholder), and SPRINT-9 (a real `if`/`else` — not just a guard clause
+— now gives both branches their own steps off the decision, with
+whatever follows resuming from whichever branch doesn't return/throw;
+also fixed a related bug where a non-call condition followed by a
+call-shaped then-branch corrupted the decision's name) are complete and
+verified. Selecting a node already surfaces
 business + technical detail in the side panel, a partial step toward the
 full Inspector acceptance criterion below — the "Open Source" jump to
 Monaco (source navigation isn't wired in yet) is the remaining work,

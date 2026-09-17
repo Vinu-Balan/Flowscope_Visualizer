@@ -26,9 +26,12 @@ ever imported by the sandboxed preload script.
 
 Body-event extraction is deliberately generic rather than a hand-modeled
 control-flow grammar (`src/extract-body-events.ts`, `src/cst-utils.ts`) —
-only a method's direct block and one level into an `if`'s then-branch are
-walked; loops, switch, try/catch, and lambdas aren't modeled. See
-"Planned scope" in `docs/sprints/SPRINT-5.md`.
+only a method's direct block and one level into an `if`'s then/else
+branches are walked; loops, switch, try/catch, and lambdas aren't
+modeled — scoped by surveying real usage across the user's own Spring
+Boot projects rather than guessing (`docs/sprints/SPRINT-9.md`: `switch`
+never appears in either; `if`/`else` is the dominant conditional
+construct by a wide margin). See "Planned scope" in `docs/sprints/SPRINT-5.md`.
 
 A `JavaMethod` also carries its declaration `line` and `parameterCount`
 (arity) — the only two signals available, with no type checker, for
@@ -41,13 +44,23 @@ also carries `stringConstantValue` when it's a `static final String`
 assigned a literal — the `private static final String VIEW = "...";`
 idiom of naming a view/redirect target once (SPRINT-7.md).
 
-An `'if'` body event also carries `thenEventCount` — how many of the
-following events belong to its then-branch, since the flat event list
-otherwise has no block boundaries. Lets a consumer correctly bound *any*
-then-branch (not just a bare `throw`/`return`), so a decision with a
-non-exiting then-branch (a side effect that falls through, no `else`)
-still resolves to two real edges instead of having its branch silently
-absorbed into whatever came next (`docs/sprints/SPRINT-8.md`). A
+An `'if'` body event also carries `thenEventCount` and (when a real
+`else` is present) `elseEventCount` — how many of the following events
+belong to each branch, since the flat event list otherwise has no block
+boundaries. Lets a consumer correctly bound *any* branch shape (not just
+a bare `throw`/`return`), so a decision with a non-exiting then-branch
+(a side effect that falls through, no `else`) still resolves to two real
+edges instead of having its branch silently absorbed into whatever came
+next (`docs/sprints/SPRINT-8.md`), and a real `else` — previously never
+read at all — gets its own branch too, an `else if` chain composing
+naturally as a nested `'if'` event within the else-branch's own slice
+(`docs/sprints/SPRINT-9.md`). A separate `hasConditionCall` flag records
+whether the condition itself resolved to a call and so pushed its own
+`'call'` event — without it, a consumer can't tell "the next event is my
+condition's call" from "there was no condition-call event, so the next
+event is already the then-branch's first statement", which previously
+let a call-shaped first then-statement get misread as the condition's
+own call whenever the condition itself wasn't one (SPRINT-9.md). A
 `'call'`/`'construct'`/`'throw'` event, and a call-valued `'return'`,
 also carry the argument list exactly as written (`argumentsText` /
 `returnsCallArgumentsText`, e.g. `name, categoryId, price`) — not an
@@ -56,5 +69,5 @@ a genuinely zero-argument call) so the Inspector's Technical panel can
 show which variable is actually in play at a step (SPRINT-8.md).
 
 **Status:** implemented — see `docs/sprints/SPRINT-4.md` / Weekend 4,
-`docs/sprints/SPRINT-5.md` / Weekend 5, `docs/sprints/SPRINT-7.md`, and
-`docs/sprints/SPRINT-8.md`.
+`docs/sprints/SPRINT-5.md` / Weekend 5, `docs/sprints/SPRINT-7.md`,
+`docs/sprints/SPRINT-8.md`, and `docs/sprints/SPRINT-9.md`.

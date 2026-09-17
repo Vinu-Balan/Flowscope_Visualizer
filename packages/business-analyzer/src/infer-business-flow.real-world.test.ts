@@ -315,3 +315,146 @@ describe('inferBusinessFlow — a no-else if whose body falls through (docs/spri
     expect(toReturn?.label).toBe('No');
   });
 });
+
+const REGISTER_SOURCE = `
+  package com.example;
+
+  @Controller
+  public class UserController {
+      private final UserService userService;
+
+      @PostMapping("/register")
+      public ModelAndView addUser(User user, boolean exists) {
+          if (!exists) {
+              user.setRole("ROLE_NORMAL");
+              this.userService.addUser(user);
+              return new ModelAndView("userLogin");
+          } else {
+              ModelAndView mView = new ModelAndView("register");
+              mView.addObject("msg", "username is taken");
+              return mView;
+          }
+      }
+  }
+`;
+
+const PROFILE_SOURCE = `
+  package com.example;
+
+  @Controller
+  public class UserController {
+      @GetMapping("/profileDisplay")
+      public String profileDisplay(Model model, User user) {
+          if (user != null) {
+              model.addAttribute("userid", user.getId());
+          } else {
+              model.addAttribute("msg", "User not found");
+          }
+          return "updateProfile";
+      }
+  }
+`;
+
+describe('inferBusinessFlow — a real if/else, both branches (docs/sprints/SPRINT-9.md)', () => {
+  it('gives the decision two branches, each with its own real steps, when both branches return', () => {
+    // Real pattern: UserController.addUser (E-commerce project) — the
+    // `else` was previously dropped entirely.
+    const FILES = [projectFile('UserController.java', REGISTER_SOURCE)];
+    const result = inferBusinessFlow(
+      api({ methodName: 'addUser', httpMethod: 'POST', path: '/register', className: 'UserController', file: 'UserController.java' }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const decision = steps.find((step) => step.type === 'decision');
+    expect(decision).toBeDefined();
+    if (!decision) return;
+
+    const fromDecision = edges.filter((edge) => edge.from === decision.id);
+    expect(fromDecision).toHaveLength(2);
+
+    const names = steps.map((step) => step.businessName);
+    // The then-branch's own steps (not absorbed into the decision or
+    // dropped) and the else-branch's own step (previously dropped
+    // entirely) are both present.
+    expect(names).toContain('Set Role');
+    expect(names).toContain('Add User');
+    expect(names).toContain('Prepare "msg" for Display');
+  });
+
+  it('resumes shared trailing code from the branch that falls through, not both', () => {
+    // Real pattern: UserController.profileDisplay / AdminController — both
+    // branches only set a display value, then the method falls through to
+    // one shared `return "updateProfile"`.
+    const FILES = [projectFile('UserController.java', PROFILE_SOURCE)];
+    const result = inferBusinessFlow(
+      api({ methodName: 'profileDisplay', httpMethod: 'GET', path: '/profileDisplay', className: 'UserController', file: 'UserController.java' }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const decision = steps.find((step) => step.type === 'decision');
+    const userIdStep = steps.find((step) => step.businessName.includes('userid'));
+    const msgStep = steps.find((step) => step.businessName.includes('msg'));
+    const pageStep = steps.find((step) => /Updateprofile|updateProfile/i.test(step.businessName));
+    expect(decision).toBeDefined();
+    expect(userIdStep).toBeDefined();
+    expect(msgStep).toBeDefined();
+    expect(pageStep).toBeDefined();
+    if (!decision || !userIdStep || !msgStep || !pageStep) return;
+
+    expect(edges.filter((edge) => edge.from === decision.id)).toHaveLength(2);
+    // The trailing "show the page" step connects from exactly one branch's
+    // tail (the else, per the documented arbitrary-but-consistent choice
+    // when both branches fall through) — never left dangling off the
+    // decision itself, and never duplicated onto both branches.
+    const intoPage = edges.filter((edge) => edge.to === pageStep.id);
+    expect(intoPage).toHaveLength(1);
+    expect(intoPage[0]?.from).toBe(msgStep.id);
+  });
+});
+
+const ASYMMETRIC_SOURCE = `
+  package com.example;
+
+  @Service
+  public class StatusService {
+      public String checkStatus(boolean ok) {
+          if (ok) {
+              return "success";
+          } else {
+              logFailure();
+          }
+          return "done";
+      }
+  }
+`;
+
+describe('inferBusinessFlow — an if/else where only one branch exits (docs/sprints/SPRINT-9.md)', () => {
+  it('resumes trailing code from whichever branch does not return, not the branch that does', () => {
+    const FILES = [projectFile('StatusService.java', ASYMMETRIC_SOURCE)];
+    const result = inferBusinessFlow(
+      api({ methodName: 'checkStatus', httpMethod: 'GET', path: '/status', className: 'StatusService', file: 'StatusService.java' }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const decision = steps.find((step) => step.type === 'decision');
+    const logStep = steps.find((step) => /log/i.test(step.businessName));
+    const doneStep = steps.find((step) => step.businessDescription.includes('done'));
+    expect(decision).toBeDefined();
+    expect(logStep).toBeDefined();
+    expect(doneStep).toBeDefined();
+    if (!decision || !logStep || !doneStep) return;
+
+    const intoDone = edges.filter((edge) => edge.to === doneStep.id);
+    expect(intoDone).toHaveLength(1);
+    expect(intoDone[0]?.from).toBe(logStep.id);
+  });
+});

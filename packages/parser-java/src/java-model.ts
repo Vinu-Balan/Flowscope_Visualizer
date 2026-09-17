@@ -77,6 +77,18 @@ export interface JavaBodyEvent {
   /** 'if': true when the then-branch's first statement is a `return`. */
   readonly guardReturns?: boolean | undefined;
   /**
+   * 'if': whether the condition itself resolved to a call, and so pushed
+   * its own `'call'` event right after this one. Without this, a
+   * consumer can't distinguish "the next event is my condition's own
+   * call" from "there was no condition-call event, so the next event is
+   * already the then-branch's first statement" — a condition that isn't
+   * itself a call (e.g. `!exists`) followed by a then-branch that opens
+   * with one (e.g. `user.setRole(...)`) would otherwise have that first
+   * then-branch step misread as the condition's call
+   * (docs/sprints/SPRINT-9.md).
+   */
+  readonly hasConditionCall?: boolean | undefined;
+  /**
    * 'if': how many of the events immediately following this one (after
    * this condition's own 'call' event, if any) belong to the then-branch —
    * the flat event list has no block boundaries otherwise, so this is how
@@ -85,6 +97,14 @@ export interface JavaBodyEvent {
    * (docs/sprints/SPRINT-8.md).
    */
   readonly thenEventCount?: number | undefined;
+  /**
+   * 'if': how many of the events after the then-branch's own belong to a
+   * real `else` branch — `undefined` when there's no `else` at all
+   * (distinct from `0`, an `else` with an empty body). An `else if` chain
+   * is just an `elseEventCount`-bounded slice that happens to start with
+   * its own nested `'if'` event (docs/sprints/SPRINT-9.md).
+   */
+  readonly elseEventCount?: number | undefined;
 
   /** 'throw': the thrown exception's simple type name. */
   readonly exceptionType?: string | undefined;

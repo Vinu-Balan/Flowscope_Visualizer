@@ -425,6 +425,7 @@ function processIf(ifStatement: unknown, events: JavaBodyEvent[], depth: number)
   const line = findFirstToken(ifStatement)?.startLine ?? 0;
 
   let conditionText = '';
+  let hasConditionCall = false;
   if (conditionExpression) {
     const primary = unwrapToPrimary(conditionExpression);
     const call = primary ? describeCallAtPrimary(primary) : undefined;
@@ -434,22 +435,43 @@ function processIf(ifStatement: unknown, events: JavaBodyEvent[], depth: number)
         ? `${call.targetName}.${call.methodName}(${callArgsText})`
         : `${call.methodName}(${callArgsText})`
       : renderTokensInOrder(conditionExpression);
+    // Mirrors exactly what `emitExpressionEvent(conditionExpression, ...)`
+    // below will do — so a consumer can tell "the event right after mine
+    // is my own condition's call" from "there was no condition-call event
+    // at all, so that next event is already the then-branch's first
+    // statement" (docs/sprints/SPRINT-9.md; a condition like `!exists`
+    // that isn't itself a call, followed by a then-branch that opens with
+    // one, e.g. `user.setRole(...)`, was previously misread as the
+    // condition's own call — silently dropping the real first then-branch
+    // step and throwing off the branch boundary by one event).
+    hasConditionCall = call !== undefined;
   }
 
-  const thenStatement = childNode(ifStatement, 'statement');
+  // `ifStatement.children.statement` is a 2-element array when an `else`
+  // is present — [thenStatement, elseStatement] — the else-branch itself
+  // a nested `ifStatement` for an `else if` chain, so recursion into
+  // `processIf` composes naturally without special-casing chains
+  // (docs/sprints/SPRINT-9.md).
+  const statements = childNodes(ifStatement, 'statement');
+  const thenStatement = statements[0];
+  const hasElse = hasChild(ifStatement, 'Else');
+  const elseStatement = hasElse ? statements[1] : undefined;
   const firstThenKind = thenStatement ? firstStatementKindOf(thenStatement) : undefined;
 
-  // Extracted into a scratch array first (not appended directly) so the
+  // Extracted into scratch arrays first (not appended directly) so the
   // 'if' event can record exactly how many of the following events
-  // belong to the then-branch — the flat event list otherwise has no
-  // block boundaries, so a caller couldn't tell "part of the then-branch"
-  // from "comes after the if" for a branch that isn't a bare
-  // throw/return (docs/sprints/SPRINT-8.md; found via a real `if` with no
-  // `else` whose body just sets a value and falls through — every event
-  // after it was wrongly absorbed into the "continue" branch).
+  // belong to each branch — the flat event list otherwise has no block
+  // boundaries, so a caller couldn't tell "part of the then-branch" from
+  // "part of the else-branch" from "comes after the if" for a branch
+  // that isn't a bare throw/return (docs/sprints/SPRINT-8.md; extended to
+  // a real `else` in docs/sprints/SPRINT-9.md).
   const thenEvents: JavaBodyEvent[] = [];
   if (thenStatement) {
     processStatement(thenStatement, thenEvents, depth + 1);
+  }
+  const elseEvents: JavaBodyEvent[] = [];
+  if (elseStatement) {
+    processStatement(elseStatement, elseEvents, depth + 1);
   }
 
   events.push({
@@ -458,13 +480,16 @@ function processIf(ifStatement: unknown, events: JavaBodyEvent[], depth: number)
     conditionText,
     guardThrows: firstThenKind === 'throw',
     guardReturns: firstThenKind === 'return',
+    hasConditionCall,
     thenEventCount: thenEvents.length,
+    ...(hasElse ? { elseEventCount: elseEvents.length } : {}),
   });
 
   if (conditionExpression) {
     emitExpressionEvent(conditionExpression, events);
   }
   events.push(...thenEvents);
+  events.push(...elseEvents);
 }
 
 function processStatement(statementNode: unknown, events: JavaBodyEvent[], depth: number): void {
