@@ -74,13 +74,13 @@ project.
 ## Current status
 
 **Weekends 1–6 (Desktop foundation, Project opening, Project scanner, API
-discovery, Business flow engine, Graph visualization) complete, three
-real-world hardening passes (Sprint 7, Sprint 8, Sprint 9), and Weekend
-10 (Release preparation) pulled forward on direct request** — see
-`docs/sprints/SPRINT-1.md` through `SPRINT-10.md`. Weekends 7–9
-(Inspector's remaining work, source navigation, search) are still ahead;
-Weekend 10 shipped early because the user asked for a runnable package
-specifically. FlowScope launches as a
+discovery, Business flow engine, Graph visualization) complete, four
+real-world/direct-request hardening passes (Sprint 7, Sprint 8, Sprint 9,
+Sprint 11), and Weekend 10 (Release preparation) pulled forward on direct
+request** — see `docs/sprints/SPRINT-1.md` through `SPRINT-11.md`.
+Weekends 7–9 (Inspector's remaining work, source navigation, search) are
+still ahead; Weekend 10 shipped early because the user asked for a
+runnable package specifically. FlowScope launches as a
 real Electron desktop app: Welcome/Workspace routes, resizable three-pane
 workspace shell, command palette, settings dialog, theme system, and a
 working IPC contract (ping, project-open dialog, project validation,
@@ -89,7 +89,8 @@ get/update). Opening a project runs real Maven/Gradle validation
 (`packages/workspace`) with a Recent Projects list; clicking Analyze (or
 Ctrl/Cmd+Shift+A) walks the project's file tree (`packages/scanner`),
 parses its Java files (`packages/parser-java`, ADR-006), and discovers
-Spring MVC REST endpoints (`packages/parser-spring`) — shown in the
+REST endpoints — Spring MVC or JAX-RS/Jersey, recognized independently
+in the same pass (`packages/parser-spring`, SPRINT-11.md) — shown in the
 Architecture sidebar as a clickable, method-badged API list. Selecting an
 API infers its real business flow (`packages/business-analyzer` +
 `packages/graph-engine` + `packages/graph-schema`) — a confidence-scored,

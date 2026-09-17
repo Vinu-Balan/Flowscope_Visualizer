@@ -13,7 +13,8 @@ export interface DiscoverApisResult {
 /**
  * Parses each given Java file (project-relative paths, normally the
  * `main`/`other` source-set files from a prior `packages/scanner` scan)
- * and discovers Spring MVC endpoints in them (docs/sprints/SPRINT-4.md).
+ * and discovers REST endpoints in them — Spring MVC or JAX-RS/Jersey
+ * (docs/sprints/SPRINT-4.md, docs/sprints/SPRINT-11.md).
  * Parsing itself — including the per-file resilience and the
  * project-root-unreadable failure case — is `packages/parser-java`'s
  * `parseJavaFiles`, shared with `packages/business-analyzer` so a

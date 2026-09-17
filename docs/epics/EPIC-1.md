@@ -51,6 +51,10 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
    - Branch correctness & argument visibility hardening (`SPRINT-8.md`) —
      complete; same as SPRINT-7, doesn't map onto its own weekend
    - If/else branch coverage (`SPRINT-9.md`) — complete; same as SPRINT-7/8
+   - JAX-RS/Jersey endpoint discovery (`SPRINT-11.md`) — complete; a
+     direct-request feature, not a real-world hardening pass like
+     SPRINT-7–9 (no real Jersey project existed to harden against),
+     implemented against the JAX-RS spec instead
 7. Inspector
 8. Code navigation
 9. Search & UX polish
@@ -91,7 +95,8 @@ real Maven/Gradle validation), SPRINT-3 (project scanner — Java/resource
 file discovery, surfaced in the Architecture sidebar), SPRINT-4 (API
 discovery — real Java parsing via `packages/parser-java`, Spring MVC
 endpoint discovery via `packages/parser-spring`, both surfaced in a
-clickable Architecture sidebar list), SPRINT-5 (business flow engine —
+clickable Architecture sidebar list; SPRINT-11 later added independent
+JAX-RS/Jersey discovery in the same pass), SPRINT-5 (business flow engine —
 `packages/business-analyzer` infers a confidence-scored, branching
 business flow per API, `packages/graph-engine`/`packages/graph-schema`
 assemble and validate the BEG), SPRINT-6 (graph visualization — the
@@ -111,11 +116,16 @@ placeholder), and SPRINT-9 (a real `if`/`else` — not just a guard clause
 — now gives both branches their own steps off the decision, with
 whatever follows resuming from whichever branch doesn't return/throw;
 also fixed a related bug where a non-call condition followed by a
-call-shaped then-branch corrupted the decision's name), and SPRINT-10 (a
+call-shaped then-branch corrupted the decision's name), SPRINT-10 (a
 portable, no-install Windows package — `electron-builder` configured, a
 real app icon, `release/FlowScope-0.1.0-portable-win-x64.zip` built and
-its `.exe` verified to actually launch and work standalone) are complete
-and verified. Selecting a node already surfaces
+its `.exe` verified to actually launch and work standalone), and
+SPRINT-11 (JAX-RS/Jersey endpoint discovery — a class-level `@Path` plus
+a bare `@GET`/`@POST`/etc. marker is now recognized independently of
+Spring MVC's `@RestController`/`@GetMapping` style, verified through the
+real parser against a spec-accurate resource class and its
+`JerseyConfig`/`ResourceConfig` registration) are complete and verified.
+Selecting a node already surfaces
 business + technical detail in the side panel, a partial step toward the
 full Inspector acceptance criterion below — the "Open Source" jump to
 Monaco (source navigation isn't wired in yet) and search are the

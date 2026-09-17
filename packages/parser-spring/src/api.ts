@@ -1,10 +1,12 @@
 import { z } from 'zod';
 
 /**
- * A Spring MVC REST endpoint discovered by interpreting the Java Semantic
- * Model's annotations (docs/sprints/SPRINT-4.md). Framework-specific on
- * purpose — this is where "Spring" enters the pipeline; nothing upstream
- * of `packages/parser-spring` knows about it (docs/ARCHITECTURE.md).
+ * A REST endpoint discovered by interpreting the Java Semantic Model's
+ * annotations — Spring MVC (docs/sprints/SPRINT-4.md) or JAX-RS/Jersey
+ * (docs/sprints/SPRINT-11.md), both commonly hosted inside a Spring Boot
+ * app. Framework-specific on purpose — this is where that layer enters
+ * the pipeline; nothing upstream of `packages/parser-spring` knows about
+ * it (docs/ARCHITECTURE.md).
  *
  * This file has zero Node.js dependencies and is published as the
  * separate `@flowscope/parser-spring/api` entry point (see package.json

@@ -73,4 +73,76 @@ describe('discoverApisInFile (integration with the real parser)', () => {
       expect(discoverApisInFile(parsed.value, relativePath)).toEqual([]);
     }
   });
+
+  it('discovers a real JAX-RS/Jersey resource, registered via a JerseyConfig-style ResourceConfig (docs/sprints/SPRINT-11.md)', () => {
+    // The real JAX-RS idiom: a class-level @Path base, a bare @GET/@POST/etc.
+    // marker per method (never combined with the path the way Spring's
+    // @GetMapping is), and an optional method-level @Path suffix.
+    // `javax.ws.rs.*` here — `jakarta.ws.rs.*` extracts identically, since
+    // ADR-006 never resolves imports.
+    const resourceSource = `
+      package com.example;
+
+      import javax.ws.rs.GET;
+      import javax.ws.rs.POST;
+      import javax.ws.rs.Path;
+      import javax.ws.rs.PathParam;
+      import javax.ws.rs.Produces;
+      import javax.ws.rs.core.MediaType;
+
+      @Path("/products")
+      @Produces(MediaType.APPLICATION_JSON)
+      public class ProductResource {
+
+          @GET
+          public Response getAllProducts() {
+              return null;
+          }
+
+          @GET
+          @Path("/{id}")
+          public Response getProduct(@PathParam("id") Long id) {
+              return null;
+          }
+
+          @POST
+          public Response createProduct(Product product) {
+              return null;
+          }
+      }
+    `;
+    // The registration class itself declares no endpoints of its own —
+    // discovery works directly off the resource class's own annotations,
+    // not off this registration (see discoverJaxRsMethodApis's doc comment).
+    const configSource = `
+      package com.example;
+
+      import org.glassfish.jersey.server.ResourceConfig;
+      import org.springframework.stereotype.Component;
+
+      @Component
+      public class JerseyConfig extends ResourceConfig {
+          public JerseyConfig() {
+              register(ProductResource.class);
+              packages("com.example");
+          }
+      }
+    `;
+
+    const parsedResource = parseJavaFile(resourceSource);
+    expect(parsedResource.ok).toBe(true);
+    if (!parsedResource.ok) return;
+    const apis = discoverApisInFile(parsedResource.value, 'ProductResource.java');
+    expect(apis.map((a) => `${a.httpMethod} ${a.path}`)).toEqual([
+      'GET /products',
+      'GET /products/{id}',
+      'POST /products',
+    ]);
+    expect(apis.every((a) => a.className === 'ProductResource')).toBe(true);
+
+    const parsedConfig = parseJavaFile(configSource);
+    expect(parsedConfig.ok).toBe(true);
+    if (!parsedConfig.ok) return;
+    expect(discoverApisInFile(parsedConfig.value, 'JerseyConfig.java')).toEqual([]);
+  });
 });

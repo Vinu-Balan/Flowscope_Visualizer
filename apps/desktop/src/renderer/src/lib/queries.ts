@@ -88,8 +88,9 @@ export function useProjectScanQuery(projectPath: string | undefined) {
 }
 
 /**
- * Discovers Spring MVC APIs in the project's non-test Java files
- * (docs/sprints/SPRINT-4.md). A lazy query like `useProjectScanQuery` above,
+ * Discovers REST APIs (Spring MVC or JAX-RS/Jersey, docs/sprints/SPRINT-11.md)
+ * in the project's non-test Java files (docs/sprints/SPRINT-4.md). A lazy
+ * query like `useProjectScanQuery` above,
  * sharing the same cache-key-per-project pattern. Its `queryFn` reads the
  * scan result straight out of the query cache rather than taking it as a
  * hook argument, so a `refetch()` always sees whatever scan most recently
