@@ -26,12 +26,44 @@ ever imported by the sandboxed preload script.
 
 Body-event extraction is deliberately generic rather than a hand-modeled
 control-flow grammar (`src/extract-body-events.ts`, `src/cst-utils.ts`) —
-only a method's direct block and one level into an `if`'s then/else
-branches are walked; loops, switch, try/catch, and lambdas aren't
-modeled — scoped by surveying real usage across the user's own Spring
-Boot projects rather than guessing (`docs/sprints/SPRINT-9.md`: `switch`
-never appears in either; `if`/`else` is the dominant conditional
-construct by a wide margin). See "Planned scope" in `docs/sprints/SPRINT-5.md`.
+a method's direct block, one level into an `if`'s then/else branches, and
+(since SPRINT-12) a `try`/`catch`'s try-block and each catch clause are
+walked; loops, switch, and lambdas still aren't modeled — scoped by
+surveying real usage across the user's own Spring Boot projects rather
+than guessing (`docs/sprints/SPRINT-9.md`: `switch` never appears in
+either; `if`/`else` is the dominant conditional construct by a wide
+margin. `docs/sprints/SPRINT-12.md`: `try`/`catch` is used systemically
+as real business branching, not just error handling, in the user's
+richest real project). See "Planned scope" in `docs/sprints/SPRINT-5.md`.
+
+A `'try'` body event carries `tryEventCount` (how many following events
+belong to the try-block itself) and `catchCount` (how many `'catch'`
+events immediately follow); each `'catch'` event carries its own
+`catchEventCount` plus `exceptionType` (shared with `'throw'`, whose
+first-catch-type-only rule applies to a multi-catch
+`catch (IOException | SQLException e)`) — the same flat,
+count-bounded boundary-marking pattern `'if'`'s `thenEventCount`/
+`elseEventCount` already established, generalized from 2 branches to N.
+Covers both a plain `try` and `try (Resource r = ...)`
+(try-with-resources; the resource declaration itself isn't modeled); a
+`finally` clause isn't modeled at all (`docs/sprints/SPRINT-12.md`).
+
+A `'return'` event also carries `returnsNestedCallTarget`/
+`returnsNestedCallMethod`/`returnsNestedCallArgumentCount`/
+`returnsNestedCallArgumentsText` — a call nested as the *first argument*
+of the returned call, e.g. `bookingService.createBooking(request)` inside
+`return ResponseEntity.ok(bookingService.createBooking(request));`.
+Without this the single most common real Spring MVC controller shape —
+a one-line delegation wrapped in a response type — had its actual
+business call completely invisible, only the wrapper call ever
+extracted (`docs/sprints/SPRINT-12.md`).
+
+`unwrapToPrimary` also now recognizes a plain (non-declaring) assignment
+expression's own CST shape (`x = call();`, not just a variable
+declaration's initializer) and unwraps to its right-hand value rather
+than its target variable — previously a reassignment's call was silently
+dropped entirely, found via a real `catch` clause that reassigns an
+already-declared variable to an alternate lookup (`docs/sprints/SPRINT-12.md`).
 
 A `JavaMethod` also carries its declaration `line` and `parameterCount`
 (arity) — the only two signals available, with no type checker, for
@@ -70,4 +102,5 @@ show which variable is actually in play at a step (SPRINT-8.md).
 
 **Status:** implemented — see `docs/sprints/SPRINT-4.md` / Weekend 4,
 `docs/sprints/SPRINT-5.md` / Weekend 5, `docs/sprints/SPRINT-7.md`,
-`docs/sprints/SPRINT-8.md`, and `docs/sprints/SPRINT-9.md`.
+`docs/sprints/SPRINT-8.md`, `docs/sprints/SPRINT-9.md`, and
+`docs/sprints/SPRINT-12.md`.

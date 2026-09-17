@@ -74,13 +74,13 @@ project.
 ## Current status
 
 **Weekends 1–6 (Desktop foundation, Project opening, Project scanner, API
-discovery, Business flow engine, Graph visualization) complete, four
+discovery, Business flow engine, Graph visualization) complete, five
 real-world/direct-request hardening passes (Sprint 7, Sprint 8, Sprint 9,
-Sprint 11), and Weekend 10 (Release preparation) pulled forward on direct
-request** — see `docs/sprints/SPRINT-1.md` through `SPRINT-11.md`.
-Weekends 7–9 (Inspector's remaining work, source navigation, search) are
-still ahead; Weekend 10 shipped early because the user asked for a
-runnable package specifically. FlowScope launches as a
+Sprint 11, Sprint 12), and Weekend 10 (Release preparation) pulled forward
+on direct request** — see `docs/sprints/SPRINT-1.md` through
+`SPRINT-12.md`. Weekends 7–9 (Inspector's remaining work, source
+navigation, search) are still ahead; Weekend 10 shipped early because the
+user asked for a runnable package specifically. FlowScope launches as a
 real Electron desktop app: Welcome/Workspace routes, resizable three-pane
 workspace shell, command palette, settings dialog, theme system, and a
 working IPC contract (ping, project-open dialog, project validation,
@@ -135,4 +135,15 @@ Weekend 7/8/9's remaining work, next. A portable, no-install Windows
 build now exists too (`apps/desktop`'s `pnpm run dist:win`,
 `docs/sprints/SPRINT-10.md`) — Weekend 10's deliverable, done ahead of
 7–9 because the user asked for a runnable `.exe` directly; still unsigned
-and without auto-update, both explicitly out of Phase 1 scope.
+and without auto-update, both explicitly out of Phase 1 scope. Business-flow
+extraction goes substantially deeper now too: same-project call chains
+inline up to 8 hops (not 1), bounded by a total-step safety valve rather
+than a hardcoded depth; `try`/`catch` produces a real branch per catch
+clause (`describeCatch`), the same merge-point model `if`/`else` already
+used; and two real data-loss bugs were fixed along the way — a plain
+reassignment's call (`user = repo.find(id);`) and a call nested inside a
+`return`'s wrapper (`return ResponseEntity.ok(service.call(...));`, the
+single most common real Spring MVC controller shape there is) were both
+previously invisible (SPRINT-12.md, grounded in a survey of real call
+chains across all four of the user's projects — one endpoint went from 2
+rendered steps to 10, another to 22).

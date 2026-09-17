@@ -2,6 +2,7 @@ export type { BusinessFlow, BusinessFlowEdge, BusinessStep } from './business-fl
 export { inferBusinessFlow } from './infer-business-flow';
 export {
   describeCall,
+  describeCatch,
   describeConstruct,
   describeDecision,
   describeReturn,

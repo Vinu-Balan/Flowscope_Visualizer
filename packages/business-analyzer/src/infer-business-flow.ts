@@ -5,6 +5,7 @@ import type { DiscoveredApi } from '@flowscope/parser-spring/api';
 import type { BusinessFlow, BusinessFlowEdge, BusinessStep } from './business-flow';
 import {
   describeCall,
+  describeCatch,
   describeConstruct,
   describeDecision,
   describeReturn,
@@ -16,13 +17,35 @@ import {
 import { buildTypeIndex, type TypeIndexEntry } from './type-index';
 
 /**
- * How many hops of same-project method calls get inlined into the flow —
- * the controller's direct callee, no further (docs/sprints/SPRINT-5.md's
- * "Explicitly deferred"). A call beyond this depth, or one that doesn't
- * resolve to a project type at all, still becomes a step — just not
- * unrolled into its own callee's steps.
+ * How many hops of same-project method calls get inlined into the flow.
+ * Real, non-trivial endpoints routinely chain 3+ hops deep (a controller
+ * calling a service that calls another service or a repository, each with
+ * its own lookup-or-throw) — a depth of 1 (SPRINT-5.md's original,
+ * deliberately conservative choice) was cutting that off entirely and
+ * rendering only the top layer, found by surveying real project call
+ * chains (docs/sprints/SPRINT-12.md). Generous but not unbounded: a
+ * pathological or mutually-recursive call graph is still capped, though
+ * `MAX_TOTAL_STEPS` below is the practical limit that actually bites
+ * first for any real codebase — `ctx.visited` (keyed by resolved
+ * type+method+line) already prevents infinite recursion on a real cycle
+ * regardless of this number.
  */
-const MAX_INLINE_DEPTH = 1;
+const MAX_INLINE_DEPTH = 8;
+
+/**
+ * A hard cap on how many steps one flow can grow to via inlining, checked
+ * alongside `MAX_INLINE_DEPTH` — the practical safety valve for a call
+ * graph that's wide rather than deep (many sibling calls, each shallow)
+ * so a single endpoint can't produce an unbounded, unbrowsable diagram.
+ * Once hit, a call that would otherwise inline instead becomes a plain,
+ * un-inlined step — visible, just not expanded further (SPRINT-12.md).
+ */
+const MAX_TOTAL_STEPS = 150;
+
+/** Whether a resolved call is still worth inlining — both depth and total-size budgets must have room. */
+function canInlineFurther(ctx: FlowContext, depth: number): boolean {
+  return depth < MAX_INLINE_DEPTH && ctx.stepCount < MAX_TOTAL_STEPS;
+}
 
 interface PendingEdge {
   readonly type: BegEdgeType;
@@ -192,7 +215,7 @@ function handleCall(
     ownerFile,
     ctx.typeIndex,
   );
-  if (resolution && depth < MAX_INLINE_DEPTH && !ctx.visited.has(resolution.key)) {
+  if (resolution && canInlineFurther(ctx, depth) && !ctx.visited.has(resolution.key)) {
     ctx.visited.add(resolution.key);
     unroll(resolution.type, resolution.file, resolution.method, depth + 1, ctx);
     return;
@@ -247,6 +270,42 @@ function handleReturn(
   const literal = resolvedReturnLiteral(event, ownerType);
 
   if (depth === 0) {
+    // A call nested as the outer return-call's first argument — e.g.
+    // `bookingService.createBooking(request)` inside `return
+    // ResponseEntity.ok(bookingService.createBooking(request));` — is
+    // resolved and inlined *before* the outer wrapper step below, the
+    // same way any other call is: a single-expression-body controller
+    // method (the single most common real Spring MVC shape) otherwise
+    // has its actual business call completely invisible, only the outer
+    // wrapper (`ResponseEntity.ok`) ever showing up (docs/sprints/SPRINT-12.md).
+    if (literal === undefined && event.returnsNestedCallMethod !== undefined) {
+      const nestedTargetName = event.returnsNestedCallTarget ?? '';
+      const nestedMethodName = event.returnsNestedCallMethod;
+      const resolution = resolveCall(
+        nestedTargetName,
+        nestedMethodName,
+        event.returnsNestedCallArgumentCount,
+        ownerType,
+        ownerFile,
+        ctx.typeIndex,
+      );
+      if (resolution && canInlineFurther(ctx, depth) && !ctx.visited.has(resolution.key)) {
+        ctx.visited.add(resolution.key);
+        unroll(resolution.type, resolution.file, resolution.method, depth + 1, ctx);
+      } else {
+        const nestedDescription = describeCall(nestedMethodName, noun);
+        const nestedArgs = event.returnsNestedCallArgumentsText ?? '';
+        addStep(
+          ctx,
+          nestedDescription,
+          nestedTargetName
+            ? `${nestedTargetName}.${nestedMethodName}(${nestedArgs})`
+            : `${nestedMethodName}(${nestedArgs})`,
+          sourceOf(ownerFile, event.line, method.name, ownerType.name),
+        );
+      }
+    }
+
     const description =
       literal !== undefined
         ? describeViewReturn(literal)
@@ -292,7 +351,7 @@ function handleReturn(
   // (unlike a statement-level `call` event), so an overload here always
   // falls back to the first same-named candidate — see `selectOverload`.
   const resolution = resolveCall(targetName, methodName, undefined, ownerType, ownerFile, ctx.typeIndex);
-  if (resolution && depth < MAX_INLINE_DEPTH && !ctx.visited.has(resolution.key)) {
+  if (resolution && canInlineFurther(ctx, depth) && !ctx.visited.has(resolution.key)) {
     ctx.visited.add(resolution.key);
     unroll(resolution.type, resolution.file, resolution.method, depth + 1, ctx);
     return;
@@ -440,6 +499,104 @@ function handleIf(
   return thenEnd;
 }
 
+/**
+ * `try`/`catch`'s counterpart to `handleIf`: no natural "decision" step
+ * exists here (there's no condition to phrase as a business question), so
+ * each catch clause's steps hang directly off whatever step preceded the
+ * whole `try` — the same point the try-block's own first step connects
+ * from — via an `'error'` edge labeled with the caught exception type. A
+ * synthetic step is always added for entering each catch clause itself
+ * (`describeCatch`), so even a trivial catch body ("log and continue") is
+ * still visible as its own real node — the "this call can fail this way"
+ * signal matters even when the handler is trivial. Where code after the
+ * whole `try`/`catch` resumes from follows the same merge-point rule as
+ * `handleIf`'s: whichever branch (the try-block, or the first catch
+ * clause in source order) doesn't end the method
+ * (docs/sprints/SPRINT-12.md).
+ */
+function handleTry(
+  events: readonly JavaBodyEvent[],
+  index: number,
+  ownerType: JavaType,
+  ownerFile: string,
+  method: JavaMethod,
+  depth: number,
+  noun: string,
+  ctx: FlowContext,
+): number {
+  const tryEvent = events[index];
+  if (!tryEvent) {
+    return index + 1;
+  }
+  const next = index + 1;
+  const preTryStepId = ctx.lastStepId;
+
+  // `ctx.nextEdge` is already correctly set for wherever the try-block's
+  // own first step should connect from (whatever was active when this
+  // `'try'` event was reached) — no need to touch it before processing
+  // the try-block itself.
+  const tryEventCount = tryEvent.tryEventCount ?? 0;
+  const tryEnd = next + tryEventCount;
+  let tryTailId: string | undefined = preTryStepId;
+  let tryEndsMethod = false;
+  if (tryEventCount > 0) {
+    let i = next;
+    while (i < tryEnd) {
+      i = processEventAt(events, i, ownerType, ownerFile, method, depth, noun, ctx);
+    }
+    tryTailId = ctx.lastStepId;
+    tryEndsMethod = isTerminalEvent(events[tryEnd - 1]);
+  }
+
+  let cursor = tryEnd;
+  const catchCount = tryEvent.catchCount ?? 0;
+  const catchTails: { readonly id: string | undefined; readonly endsMethod: boolean }[] = [];
+  for (let c = 0; c < catchCount; c += 1) {
+    const catchEvent = events[cursor];
+    cursor += 1;
+    if (!catchEvent) {
+      break;
+    }
+    const exceptionType = catchEvent.exceptionType ?? 'Exception';
+    ctx.lastStepId = preTryStepId;
+    ctx.nextEdge = { type: 'error', label: exceptionType };
+    addStep(
+      ctx,
+      describeCatch(exceptionType),
+      `catch (${exceptionType} e)`,
+      sourceOf(ownerFile, catchEvent.line, method.name, ownerType.name),
+    );
+
+    const catchEventCount = catchEvent.catchEventCount ?? 0;
+    const catchEnd = cursor + catchEventCount;
+    if (catchEventCount > 0) {
+      let j = cursor;
+      while (j < catchEnd) {
+        j = processEventAt(events, j, ownerType, ownerFile, method, depth, noun, ctx);
+      }
+    }
+    catchTails.push({
+      id: ctx.lastStepId,
+      endsMethod: catchEventCount > 0 && isTerminalEvent(events[catchEnd - 1]),
+    });
+    cursor = catchEnd;
+  }
+
+  // Merge point, same reasoning as handleIf's: prefer the try-block's own
+  // tail if it doesn't end the method, else the first catch clause that
+  // doesn't either, else fall back to the pre-try step as a harmless
+  // default (nothing should follow in well-formed code at that point).
+  ctx.nextEdge = { type: 'sequence' };
+  if (!tryEndsMethod) {
+    ctx.lastStepId = tryTailId;
+  } else {
+    const firstNonTerminalCatch = catchTails.find((c) => !c.endsMethod);
+    ctx.lastStepId = firstNonTerminalCatch ? firstNonTerminalCatch.id : preTryStepId;
+  }
+
+  return cursor;
+}
+
 /** Dispatches one body event by kind, advancing the flow — shared by `unroll`'s top-level loop and `handleIf`'s branch walks so a nested `if` composes naturally through the same recursion. */
 function processEventAt(
   events: readonly JavaBodyEvent[],
@@ -458,6 +615,17 @@ function processEventAt(
 
   if (event.kind === 'if') {
     return handleIf(events, index, ownerType, ownerFile, method, depth, noun, ctx);
+  }
+  if (event.kind === 'try') {
+    return handleTry(events, index, ownerType, ownerFile, method, depth, noun, ctx);
+  }
+  if (event.kind === 'catch') {
+    // Never reached as a top-level "current" event in well-formed output —
+    // handleTry always consumes every 'catch' event itself via its own
+    // index arithmetic. Advance past it defensively rather than
+    // mis-dispatching to handleReturn below if that invariant is ever
+    // violated (docs/sprints/SPRINT-12.md).
+    return index + 1;
   }
   if (event.kind === 'call') {
     handleCall(event, ownerType, ownerFile, method, depth, noun, ctx);

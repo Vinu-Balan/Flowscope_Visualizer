@@ -34,7 +34,7 @@ export interface JavaAnnotation {
  * `packages/business-analyzer`'s inference. See
  * `docs/sprints/SPRINT-5.md` for exactly what is and isn't extracted.
  */
-export type JavaBodyEventKind = 'call' | 'construct' | 'if' | 'throw' | 'return';
+export type JavaBodyEventKind = 'call' | 'construct' | 'if' | 'throw' | 'return' | 'try' | 'catch';
 
 export interface JavaBodyEvent {
   readonly kind: JavaBodyEventKind;
@@ -106,16 +106,57 @@ export interface JavaBodyEvent {
    */
   readonly elseEventCount?: number | undefined;
 
-  /** 'throw': the thrown exception's simple type name. */
+  /**
+   * 'throw': the thrown exception's simple type name. 'catch': the caught
+   * exception type's simple name from a `catch (X e)` clause — reused
+   * rather than a parallel field, since it's the same kind of value. A
+   * multi-catch (`catch (IOException | SQLException e)`) reports only the
+   * first type (docs/sprints/SPRINT-12.md).
+   */
   readonly exceptionType?: string | undefined;
   /** 'throw': the exception message, under the same leading-literal rule as `firstStringArgument`. */
   readonly exceptionMessage?: string | undefined;
+
+  /**
+   * 'try': how many of the events immediately following this one belong
+   * to the try-block itself, before any 'catch' events begin — same
+   * boundary-marking role as `thenEventCount` (docs/sprints/SPRINT-12.md).
+   * Covers both a plain `try { }` and `try (Resource r = ...) { }`
+   * (try-with-resources — the resource declaration itself isn't modeled,
+   * only the block); a `finally` clause isn't modeled at all.
+   */
+  readonly tryEventCount?: number | undefined;
+  /**
+   * 'try': how many `'catch'` events (each with its own event-count
+   * boundary) immediately follow the try-block's own events — 0 for a
+   * `try` with no `catch` at all (try-with-resources used purely for
+   * auto-closing).
+   */
+  readonly catchCount?: number | undefined;
+  /** 'catch': how many of the following events belong to this catch clause's own body. */
+  readonly catchEventCount?: number | undefined;
 
   /** 'return': the returned expression's call chain, if any (e.g. targetName "ResponseEntity", methodName "ok"). */
   readonly returnsCallTarget?: string | undefined;
   readonly returnsCallMethod?: string | undefined;
   /** 'return': the returned call's argument list exactly as written — same rule as `argumentsText`. */
   readonly returnsCallArgumentsText?: string | undefined;
+  /**
+   * 'return': a call nested as the returned call's *first argument* —
+   * e.g. `bookingService.createBooking(request)` inside
+   * `return ResponseEntity.ok(bookingService.createBooking(request));`.
+   * Without this, a single-expression-body controller method (extremely
+   * common in real Spring MVC code) has its actual business call
+   * completely invisible — only the outer wrapper call
+   * (`ResponseEntity.ok`) was ever seen (docs/sprints/SPRINT-12.md).
+   * `undefined` when the first argument isn't itself a call.
+   */
+  readonly returnsNestedCallTarget?: string | undefined;
+  readonly returnsNestedCallMethod?: string | undefined;
+  /** 'return': the nested call's own argument count — same overload-disambiguation role as `argumentCount`. */
+  readonly returnsNestedCallArgumentCount?: number | undefined;
+  /** 'return': the nested call's argument list exactly as written — same rule as `argumentsText`. */
+  readonly returnsNestedCallArgumentsText?: string | undefined;
   /** 'return': true for a bare `return null;`. */
   readonly returnsNullLiteral?: boolean | undefined;
   /** 'return': the returned string literal, when the return expression is (or starts with) one — typically a view name, e.g. `"redirect:/x"`. */

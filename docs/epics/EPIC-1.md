@@ -55,6 +55,12 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
      direct-request feature, not a real-world hardening pass like
      SPRINT-7–9 (no real Jersey project existed to harden against),
      implemented against the JAX-RS spec instead
+   - Deeper business logic capture (`SPRINT-12.md`) — complete: call-chain
+     inlining raised from 1 to 8 hops, `try`/`catch` modeled as a real
+     branch, plus two real data-loss bugs found and fixed (a plain
+     reassignment's call, and a call nested inside a `return`'s wrapper).
+     Interface→implementation resolution, loops, general lambda bodies,
+     and `switch` remain open, see SPRINT-12.md
 7. Inspector
 8. Code navigation
 9. Search & UX polish
@@ -124,8 +130,13 @@ SPRINT-11 (JAX-RS/Jersey endpoint discovery — a class-level `@Path` plus
 a bare `@GET`/`@POST`/etc. marker is now recognized independently of
 Spring MVC's `@RestController`/`@GetMapping` style, verified through the
 real parser against a spec-accurate resource class and its
-`JerseyConfig`/`ResourceConfig` registration) are complete and verified.
-Selecting a node already surfaces
+`JerseyConfig`/`ResourceConfig` registration), and SPRINT-12 (deeper
+business logic capture — call-chain inlining raised from 1 to 8 hops
+with a total-step safety valve, `try`/`catch` modeled as a real branch
+per catch clause, and two real data-loss bugs fixed: a plain
+reassignment's call and a call nested inside a `return`'s wrapper — one
+real endpoint went from 2 rendered steps to 10, another to 22) are
+complete and verified. Selecting a node already surfaces
 business + technical detail in the side panel, a partial step toward the
 full Inspector acceptance criterion below — the "Open Source" jump to
 Monaco (source navigation isn't wired in yet) and search are the

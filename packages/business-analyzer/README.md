@@ -24,8 +24,13 @@ class), and names each step via a small, data-driven verb/prefix table
 (`findBy*` → a lookup, `exists*`/a null-check → a decision, `save`/`put`
 → a database operation, `register`/`create` → a business step, …)
 combined with a domain noun derived from the owning type's name. Loops,
-switch, try/catch, and lambdas aren't modeled; call resolution beyond one
-hop falls back to a described-but-not-inlined step rather than erroring.
+switch, and general lambda bodies aren't modeled; call resolution beyond
+`MAX_INLINE_DEPTH` (8, raised from 1 in SPRINT-12 — real endpoints
+routinely chain 3+ hops deep) or past `MAX_TOTAL_STEPS` (150, a safety
+valve for a call graph that's wide rather than deep) falls back to a
+described-but-not-inlined step rather than erroring; `ctx.visited`
+(keyed by type/method/line) prevents infinite recursion on a real call
+cycle regardless of either bound (`docs/sprints/SPRINT-12.md`).
 
 Both the API's entry method and any call resolved for inlining are picked
 from *every* same-named candidate on the target type, not just the first
@@ -69,6 +74,29 @@ if/else (`docs/sprints/SPRINT-9.md`, scoped by surveying real usage: `if`/`else`
 was by far the dominant conditional construct across both of the user's
 projects).
 
+A real `try`/`catch` gets the same branching treatment, generalized from
+2 branches to N (`handleTry`, mirroring `handleIf`): the try-block and
+every catch clause each get their own steps, hanging off the point
+before the `try` via an `'error'`-type edge labeled with the exception
+type (`describeCatch`) — there's no natural "decision" step the way an
+`if`'s condition provides one, so a synthetic step is always added for
+entering a catch clause, keeping even a trivial handler visible. The
+same "whichever branch doesn't end the method is where trailing code
+resumes from" merge-point rule from `if`/`else` applies here too
+(`docs/sprints/SPRINT-12.md`, scoped after finding `try`/`catch` used
+systemically as real business branching — not just error handling — in
+the user's richest real project, e.g. an alternate-lookup-strategy catch
+clause, not an error at all).
+
+A `return` whose expression wraps a nested call as its first argument
+(`return ResponseEntity.ok(bookingService.createBooking(request));`,
+arguably the single most common real Spring MVC controller shape) now
+resolves and inlines that nested call first, via
+`JavaBodyEvent.returnsNestedCall*`, before the outer wrapper step —
+previously only the wrapper (`ResponseEntity.ok`) was ever visible, the
+actual business call invisible (`docs/sprints/SPRINT-12.md`; this single
+fix turned one real endpoint's rendered flow from 2 steps into 10).
+
 Every step's `technicalName` shows the real argument text the call
 actually passes (e.g. `product.setName(name)`, not
 `product.setName(...)`), threaded through from `JavaBodyEvent.argumentsText`
@@ -83,4 +111,5 @@ never depend on React, Electron, or Cytoscape (`docs/ARCHITECTURE.md`).
 
 **Status:** implemented — see `docs/sprints/SPRINT-5.md` / Weekend 5,
 `docs/sprints/SPRINT-6.md` / Weekend 6, `docs/sprints/SPRINT-7.md`,
-`docs/sprints/SPRINT-8.md`, and `docs/sprints/SPRINT-9.md`.
+`docs/sprints/SPRINT-8.md`, `docs/sprints/SPRINT-9.md`, and
+`docs/sprints/SPRINT-12.md`.

@@ -296,3 +296,119 @@ describe('parseJavaFile — string-literal arguments and returns (docs/sprints/S
     ]);
   });
 });
+
+describe('parseJavaFile — plain assignment (not a declaration) (docs/sprints/SPRINT-12.md)', () => {
+  it('extracts the call on the right-hand side of `x = call();`, not the assignment target', () => {
+    // `x = repo.find(id);` reassigns an already-declared variable — the
+    // grammar shape looks almost identical to a plain call statement, but
+    // the assignment target was previously misread as "the" primary,
+    // silently discarding the real call on the right entirely.
+    const events = bodyEventsOf('class Foo { void m() { user = repo.find(id); } }');
+    expect(events).toEqual([
+      { kind: 'call', line: 1, targetName: 'repo', methodName: 'find', argumentCount: 1, argumentsText: 'id' },
+    ]);
+  });
+
+  it('extracts a construct assigned to an already-declared variable the same way', () => {
+    const events = bodyEventsOf('class Foo { void m() { user = new User(email); } }');
+    expect(events).toEqual([
+      { kind: 'construct', line: 1, methodName: 'User', looksGenerated: false, argumentsText: 'email' },
+    ]);
+  });
+});
+
+describe('parseJavaFile — try/catch (docs/sprints/SPRINT-12.md)', () => {
+  it('bounds the try-block and a single catch clause by event count', () => {
+    const source = `
+      class Foo {
+        void m() {
+          try {
+            validate(user);
+            userDao.save(user);
+          } catch (DataIntegrityViolationException e) {
+            throw new IllegalStateException("dup");
+          }
+        }
+      }
+    `;
+    const events = bodyEventsOf(source);
+    expect(events).toEqual([
+      { kind: 'try', line: 4, tryEventCount: 2, catchCount: 1 },
+      { kind: 'call', line: 5, targetName: '', methodName: 'validate', argumentCount: 1, argumentsText: 'user' },
+      {
+        kind: 'call',
+        line: 6,
+        targetName: 'userDao',
+        methodName: 'save',
+        argumentCount: 1,
+        argumentsText: 'user',
+      },
+      { kind: 'catch', line: 7, exceptionType: 'DataIntegrityViolationException', catchEventCount: 1 },
+      {
+        kind: 'throw',
+        line: 8,
+        exceptionType: 'IllegalStateException',
+        exceptionMessage: 'dup',
+        argumentsText: '"dup"',
+      },
+    ]);
+  });
+
+  it('bounds multiple catch clauses independently, and code after the whole try/catch is not absorbed into the last catch', () => {
+    const source = `
+      class Foo {
+        void m() {
+          try {
+            risky();
+          } catch (IOException e) {
+            logError(e);
+          } catch (RuntimeException e) {
+            logOther(e);
+          }
+          afterTry();
+        }
+      }
+    `;
+    const events = bodyEventsOf(source);
+    expect(events.map((event) => event.kind)).toEqual([
+      'try',
+      'call', // risky()
+      'catch',
+      'call', // logError(e)
+      'catch',
+      'call', // logOther(e)
+      'call', // afterTry()
+    ]);
+    expect(events[0]).toMatchObject({ tryEventCount: 1, catchCount: 2 });
+    expect(events[2]).toMatchObject({ exceptionType: 'IOException', catchEventCount: 1 });
+    expect(events[4]).toMatchObject({ exceptionType: 'RuntimeException', catchEventCount: 1 });
+    expect(events[6]).toMatchObject({ methodName: 'afterTry' });
+  });
+
+  it('handles try-with-resources the same way, ignoring the resource declaration itself', () => {
+    const source = `
+      class Foo {
+        void m() {
+          try (AutoCloseable a = open()) {
+            use(a);
+          } catch (Exception e) {
+            handle(e);
+          }
+        }
+      }
+    `;
+    const events = bodyEventsOf(source);
+    expect(events.map((event) => event.kind)).toEqual(['try', 'call', 'catch', 'call']);
+    expect(events[1]).toMatchObject({ methodName: 'use' });
+  });
+
+  it('handles a try with no catch clause at all (try-with-resources used purely for auto-closing)', () => {
+    const events = bodyEventsOf(
+      'class Foo { void m() { try (AutoCloseable a = open()) { use(a); } } }',
+    );
+    expect(events).toEqual([
+      { kind: 'try', line: 1, tryEventCount: 1, catchCount: 0 },
+      { kind: 'call', line: 1, targetName: '', methodName: 'use', argumentCount: 1, argumentsText: 'a' },
+    ]);
+  });
+});

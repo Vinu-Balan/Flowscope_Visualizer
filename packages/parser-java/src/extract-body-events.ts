@@ -1,12 +1,13 @@
 /**
  * Extracts a flat, source-ordered list of `JavaBodyEvent`s from a method's
  * body CST — the calls it makes, the objects it constructs, the `if`
- * guards/`throw`s/`return`s it contains — for `packages/business-analyzer`
- * to infer a business flow from. Deliberately not a control-flow model:
- * only a method's *direct* block is walked (an `if`'s then-branch is
- * followed one level, since guard clauses are exactly the pattern we care
- * about; loops/switch/try-catch/lambdas are not modeled at all). See
- * "Planned scope" in docs/sprints/SPRINT-5.md and docs/sprints/SPRINT-7.md.
+ * guards/`throw`s/`return`s/`try`/`catch`es it contains — for
+ * `packages/business-analyzer` to infer a business flow from. Deliberately
+ * not a full control-flow model: an `if`'s then/else branches and a
+ * `try`'s try-block/catch-clauses are each walked one level (loops,
+ * switch, and lambda bodies are not modeled at all — see
+ * docs/sprints/SPRINT-12.md's "Explicitly deferred"). See "Planned scope"
+ * in docs/sprints/SPRINT-5.md and docs/sprints/SPRINT-7.md.
  *
  * Also deliberately generic rather than exhaustive, in the same spirit as
  * cst-utils.ts and ADR-006: a handful of structural accessors over the
@@ -50,6 +51,20 @@ interface ConstructDescription {
  * call or object construction always takes. Anything else (a real binary
  * comparison like `x == null`, a unary `!flag`, a ternary) returns
  * `undefined`, and callers fall back to a raw token rendering.
+ *
+ * A plain assignment (`user = repo.find(id);`, re-assigning an
+ * already-declared variable rather than declaring one) parses into this
+ * *same* `binaryExpression` shape — one `unaryExpression` — but paired
+ * with an `AssignmentOperator` and the right-hand side as a nested
+ * `expression`, not a second `unaryExpression`. Left unhandled, that
+ * single `unaryExpression` is the assignment's *target* (`user`), not its
+ * value — unwrapping to it directly silently discarded the real call on
+ * the right entirely (docs/sprints/SPRINT-12.md; found via a real
+ * `catch`-clause body that reassigns a variable declared before the
+ * `try`, a common pattern this extractor was blind to). Recursing into
+ * the right-hand side instead — itself a full `expression`, so `a = b = c`
+ * chains resolve correctly too — fixes it for every caller of
+ * `unwrapToPrimary` at once, not just assignment-aware ones.
  */
 function unwrapToPrimary(expressionNode: unknown): unknown {
   const conditional = childNode(expressionNode, 'conditionalExpression');
@@ -59,6 +74,10 @@ function unwrapToPrimary(expressionNode: unknown): unknown {
   const binary = childNode(conditional, 'binaryExpression');
   if (!binary || hasChild(binary, 'BinaryOperator')) {
     return undefined;
+  }
+  if (hasChild(binary, 'AssignmentOperator')) {
+    const rhs = childNode(binary, 'expression');
+    return rhs ? unwrapToPrimary(rhs) : undefined;
   }
   const unaryList = childNodes(binary, 'unaryExpression');
   if (unaryList.length !== 1) {
@@ -246,6 +265,28 @@ function firstArgumentLiteral(argumentList: unknown): string | undefined {
 }
 
 /**
+ * The call nested as a call's *first argument*, if there is one — e.g.
+ * `bookingService.createBooking(request)` inside
+ * `ResponseEntity.ok(bookingService.createBooking(request))`. A single-
+ * expression-body controller method delegating straight to a service call
+ * wrapped in a response type is one of the most common real Spring MVC
+ * shapes there is, and without this, the actual business call is
+ * completely invisible — only the outer wrapper call
+ * (`ResponseEntity.ok`) was ever seen (docs/sprints/SPRINT-12.md; found
+ * via a real `return ResponseEntity.ok(bookingService.createBooking(request));`).
+ * Only the first argument is checked — the common case for a wrapper call
+ * — not a general walk of every argument.
+ */
+function firstArgumentCall(argumentList: unknown): CallDescription | undefined {
+  const firstArgumentExpression = argumentList ? childNode(argumentList, 'expression') : undefined;
+  if (!firstArgumentExpression) {
+    return undefined;
+  }
+  const primary = unwrapToPrimary(firstArgumentExpression);
+  return primary ? describeCallAtPrimary(primary) : undefined;
+}
+
+/**
  * The call/constructor/throw's argument list exactly as written, e.g.
  * `name, categoryId, price` — not an evaluation, just the source text
  * (`renderTokensInOrder`), so a developer reading the Technical panel
@@ -373,12 +414,23 @@ function processReturn(returnStatement: unknown, events: JavaBodyEvent[]): void 
   const primary = unwrapToPrimary(expression);
   const call = primary ? describeCallAtPrimary(primary) : undefined;
   if (call) {
+    const nestedCall = firstArgumentCall(call.argumentList);
     events.push({
       kind: 'return',
       line,
       returnsCallTarget: call.targetName,
       returnsCallMethod: call.methodName,
       returnsCallArgumentsText: argumentsTextOf(call.argumentList),
+      ...(nestedCall
+        ? {
+            returnsNestedCallTarget: nestedCall.targetName,
+            returnsNestedCallMethod: nestedCall.methodName,
+            returnsNestedCallArgumentCount: nestedCall.argumentList
+              ? childNodes(nestedCall.argumentList, 'expression').length
+              : 0,
+            returnsNestedCallArgumentsText: argumentsTextOf(nestedCall.argumentList),
+          }
+        : {}),
     });
     return;
   }
@@ -389,6 +441,84 @@ function processReturn(returnStatement: unknown, events: JavaBodyEvent[]): void 
     line,
     ...(identifier !== undefined ? { returnsIdentifier: identifier } : {}),
   });
+}
+
+interface TryParts {
+  readonly block: unknown;
+  readonly catches: unknown;
+}
+
+/**
+ * A plain `try { }` and a `try (Resource r = ...) { }` (try-with-resources)
+ * parse to different CST shapes (`tryStatement.block`/`catches` directly,
+ * vs. nested one level under `tryStatement.tryWithResourcesStatement`) but
+ * both carry the same `block`/`catches` children once unwrapped — the
+ * resource declaration itself isn't modeled, only the body
+ * (docs/sprints/SPRINT-12.md).
+ */
+function tryStatementParts(tryStatement: unknown): TryParts | undefined {
+  const plainBlock = childNode(tryStatement, 'block');
+  if (plainBlock) {
+    return { block: plainBlock, catches: childNode(tryStatement, 'catches') };
+  }
+  const withResources = childNode(tryStatement, 'tryWithResourcesStatement');
+  const withResourcesBlock = withResources ? childNode(withResources, 'block') : undefined;
+  if (withResources && withResourcesBlock) {
+    return { block: withResourcesBlock, catches: childNode(withResources, 'catches') };
+  }
+  return undefined;
+}
+
+/**
+ * Extracts a `try`/`catch` as one `'try'` event (bounding the try-block's
+ * own events) followed by one `'catch'` event per clause (each bounding
+ * its own body's events) — the same flat, count-bounded layout `processIf`
+ * uses for then/else branches, extended to N branches instead of 2. A
+ * `finally` clause isn't modeled (docs/sprints/SPRINT-12.md).
+ */
+function processTry(tryStatement: unknown, events: JavaBodyEvent[], depth: number): void {
+  const parts = tryStatementParts(tryStatement);
+  if (!parts) {
+    return;
+  }
+  const line = findFirstToken(tryStatement)?.startLine ?? 0;
+
+  const tryEvents: JavaBodyEvent[] = [];
+  walkBlock(parts.block, tryEvents, depth + 1);
+
+  interface CatchGroup {
+    readonly line: number;
+    readonly exceptionType: string;
+    readonly events: JavaBodyEvent[];
+  }
+  const catchGroups: CatchGroup[] = [];
+  for (const clause of parts.catches ? childNodes(parts.catches, 'catchClause') : []) {
+    const formalParam = childNode(clause, 'catchFormalParameter');
+    const catchType = formalParam ? childNode(formalParam, 'catchType') : undefined;
+    const exceptionType = (catchType && findFirstTokenImage(catchType, 'Identifier')) || 'Exception';
+    const clauseBlock = childNode(clause, 'block');
+    const clauseEvents: JavaBodyEvent[] = [];
+    if (clauseBlock) {
+      walkBlock(clauseBlock, clauseEvents, depth + 1);
+    }
+    catchGroups.push({
+      line: findFirstToken(clause)?.startLine ?? line,
+      exceptionType,
+      events: clauseEvents,
+    });
+  }
+
+  events.push({ kind: 'try', line, tryEventCount: tryEvents.length, catchCount: catchGroups.length });
+  events.push(...tryEvents);
+  for (const group of catchGroups) {
+    events.push({
+      kind: 'catch',
+      line: group.line,
+      exceptionType: group.exceptionType,
+      catchEventCount: group.events.length,
+    });
+    events.push(...group.events);
+  }
 }
 
 type FirstStatementKind = 'throw' | 'return' | 'other';
@@ -505,13 +635,19 @@ function processStatement(statementNode: unknown, events: JavaBodyEvent[], depth
 
   const swts = childNode(statementNode, 'statementWithoutTrailingSubstatement');
   if (!swts) {
-    // A loop/switch/try/labeled/synchronized statement — not modeled (bounded scope).
+    // A loop/switch/labeled/synchronized statement — not modeled (bounded scope).
     return;
   }
 
   const block = childNode(swts, 'block');
   if (block) {
     walkBlock(block, events, depth + 1);
+    return;
+  }
+
+  const tryStatement = childNode(swts, 'tryStatement');
+  if (tryStatement) {
+    processTry(tryStatement, events, depth);
     return;
   }
 

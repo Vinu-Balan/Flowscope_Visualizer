@@ -458,3 +458,139 @@ describe('inferBusinessFlow — an if/else where only one branch exits (docs/spr
     expect(intoDone[0]?.from).toBe(logStep.id);
   });
 });
+
+const SIGNIN_SOURCE = `
+  package com.example;
+
+  @Service
+  public class AuthService {
+      public User signin(Login login) {
+          User user;
+          try {
+              utils.validateEmail(login.getUserName());
+              user = authDao.getUserByEmail(login.getEmail());
+          } catch (InvalidEmailFormatException e) {
+              user = authDao.getUserByUserName(login.getUserName());
+          }
+          return user;
+      }
+  }
+`;
+
+const AUDIT_LOG_SOURCE = `
+  package com.example;
+
+  @Service
+  public class AnalyzerService {
+      public Analyze analyze(Long jdId) {
+          try {
+              Jd jd = jdRepository.findById(jdId);
+              analyzeRepository.save(jd);
+              activityService.record("SUCCESS");
+              return jd;
+          } catch (Exception e) {
+              activityService.record("FAILURE");
+              throw e;
+          }
+      }
+  }
+`;
+
+describe('inferBusinessFlow — a real try/catch, both branches (docs/sprints/SPRINT-12.md)', () => {
+  it('gives the catch clause its own visible step, hanging off the same point as the try-block, labeled by exception type', () => {
+    // Real pattern: AuthService.signin — a catch clause used as an
+    // alternate lookup strategy, not error handling.
+    const FILES = [projectFile('AuthService.java', SIGNIN_SOURCE)];
+    const result = inferBusinessFlow(
+      api({ methodName: 'signin', httpMethod: 'POST', path: '/signin', className: 'AuthService', file: 'AuthService.java' }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const validateStep = steps.find((step) => step.businessName.includes('Validate'));
+    const catchStep = steps.find((step) => step.businessName.includes('InvalidEmailFormatException'));
+    expect(validateStep).toBeDefined();
+    expect(catchStep).toBeDefined();
+    if (!validateStep || !catchStep) return;
+
+    // The catch step connects via an 'error'-type edge labeled with the
+    // exception type, from the same point the try-block's own first step
+    // connects from (not chained after the try-block).
+    const intoCatch = edges.filter((edge) => edge.to === catchStep.id);
+    expect(intoCatch).toHaveLength(1);
+    expect(intoCatch[0]?.type).toBe('error');
+    expect(intoCatch[0]?.label).toBe('InvalidEmailFormatException');
+
+    const intoValidate = edges.filter((edge) => edge.to === validateStep.id);
+    expect(intoValidate).toHaveLength(1);
+    expect(intoValidate[0]?.from).toBe(intoCatch[0]?.from);
+  });
+
+  it('resumes trailing code from the try-block when both branches are non-terminal', () => {
+    const FILES = [projectFile('AuthService.java', SIGNIN_SOURCE)];
+    const result = inferBusinessFlow(
+      api({ methodName: 'signin', httpMethod: 'POST', path: '/signin', className: 'AuthService', file: 'AuthService.java' }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const getByEmailStep = steps.find((step) => step.businessName.includes('By Email'));
+    const getByUserNameStep = steps.find((step) => step.businessName.includes('User Name'));
+    const returnStep = steps.find((step) => step.type === 'response');
+    expect(getByEmailStep).toBeDefined();
+    expect(getByUserNameStep).toBeDefined();
+    expect(returnStep).toBeDefined();
+    if (!getByEmailStep || !getByUserNameStep || !returnStep) return;
+
+    const intoReturn = edges.filter((edge) => edge.to === returnStep.id);
+    expect(intoReturn).toHaveLength(1);
+    expect(intoReturn[0]?.from).toBe(getByEmailStep.id);
+    // The catch branch's own tail (the alternate lookup) is a dead end —
+    // the single-cursor model can only resume from one branch.
+    expect(edges.some((edge) => edge.from === getByUserNameStep.id)).toBe(false);
+  });
+
+  it('gives both the try-block and the catch clause their own dead end when both branches are terminal', () => {
+    // Real pattern: AnalyzerService.analyze — success path returns,
+    // failure path logs and rethrows. Neither branch should produce a
+    // dangling "resume" step, since nothing follows in well-formed code.
+    const FILES = [projectFile('AnalyzerService.java', AUDIT_LOG_SOURCE)];
+    const result = inferBusinessFlow(
+      api({ methodName: 'analyze', httpMethod: 'POST', path: '/analyze', className: 'AnalyzerService', file: 'AnalyzerService.java' }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const successLogStep = steps.find((step) => step.technicalName.includes('"SUCCESS"'));
+    const failureLogStep = steps.find((step) => step.technicalName.includes('"FAILURE"'));
+    const catchStep = steps.find((step) => step.businessName.includes('Exception'));
+    expect(successLogStep).toBeDefined();
+    expect(failureLogStep).toBeDefined();
+    expect(catchStep).toBeDefined();
+    if (!successLogStep || !failureLogStep || !catchStep) return;
+
+    // Both the try-block's tail (a terminal return) and the catch's tail
+    // (a terminal throw) are genuine dead ends — no edges out of either.
+    expect(edges.some((edge) => edge.from === successLogStep.id)).toBe(true); // -> the return step
+    expect(edges.some((edge) => edge.from === failureLogStep.id)).toBe(true); // -> the rethrow step
+    const returnStep = steps.find((step) => step.type === 'response');
+    const rethrowStep = steps.find(
+      (step) => step.type === 'error' && step.id !== catchStep.id,
+    );
+    expect(returnStep && edges.some((edge) => edge.to === returnStep.id && edge.from === successLogStep.id)).toBe(
+      true,
+    );
+    expect(
+      rethrowStep && edges.some((edge) => edge.to === rethrowStep.id && edge.from === failureLogStep.id),
+    ).toBe(true);
+    // Neither the return nor the rethrow step has any further outgoing edge.
+    expect(returnStep && edges.some((edge) => edge.from === returnStep.id)).toBe(false);
+    expect(rethrowStep && edges.some((edge) => edge.from === rethrowStep.id)).toBe(false);
+  });
+});

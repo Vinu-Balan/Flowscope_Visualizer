@@ -283,6 +283,25 @@ export function describeThrow(exceptionType: string, noun: string, message?: str
   };
 }
 
+/**
+ * Describes entering a `catch` clause — the exception-handling counterpart
+ * to `describeThrow`. Named after the exception type directly rather than
+ * the domain noun: unlike a validation rejection (`describeThrow`'s
+ * "Reject Customer"), what's caught here was thrown by whatever the `try`
+ * block called — often unrelated to the enclosing method's own domain
+ * entity (a `JdService` method catching `IOException` from a PDF library,
+ * say) — so the exception type itself is the only honest signal
+ * (docs/sprints/SPRINT-12.md).
+ */
+export function describeCatch(exceptionType: string): CallDescription {
+  return {
+    type: 'error',
+    businessName: `Handle ${exceptionType}`,
+    businessDescription: `Catches \`${exceptionType}\` and handles it instead of letting it propagate.`,
+    confidence: 0.65,
+  };
+}
+
 const REDIRECT_VIEW_PREFIX = 'redirect:';
 const FORWARD_VIEW_PREFIX = 'forward:';
 
