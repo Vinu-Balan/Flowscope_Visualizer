@@ -50,7 +50,21 @@ separate edges out of the _same_ decision node
 doesn't always mean "yes" (`customer == null` phrased as "was the
 customer found?" has its raw-true branch mean "No"). Getting this
 backwards would mislead a reader of the rendered flowchart, so it's
-covered by a dedicated integration test against the real fixture.
+covered by a dedicated integration test against the real fixture. This
+covers more than an exiting guard clause: an `if` whose then-branch is a
+non-exiting side effect (no `else`, no throw/return — just falls through)
+also produces two real edges — the then-branch's own steps (bounded by
+`JavaBodyEvent.thenEventCount`) hang off a `'conditional'`-type edge, and
+whatever follows the `if` hangs off the decision's other edge, matching
+the guard-clause case's approach rather than being silently absorbed into
+one mislabeled edge (`docs/sprints/SPRINT-8.md`).
+
+Every step's `technicalName` shows the real argument text the call
+actually passes (e.g. `product.setName(name)`, not
+`product.setName(...)`), threaded through from `JavaBodyEvent.argumentsText`
+/ `returnsCallArgumentsText` — so the Inspector's Technical panel lets a
+developer see exactly which variable or literal is in play at a step
+without opening the source file (SPRINT-8.md).
 
 Depends on the technical semantic models (`packages/parser-java` /
 `packages/parser-spring` output shapes) and `packages/graph-schema` (for
@@ -58,4 +72,5 @@ the node/edge type vocabulary a `BusinessStep` reuses directly) but must
 never depend on React, Electron, or Cytoscape (`docs/ARCHITECTURE.md`).
 
 **Status:** implemented — see `docs/sprints/SPRINT-5.md` / Weekend 5,
-`docs/sprints/SPRINT-6.md` / Weekend 6, and `docs/sprints/SPRINT-7.md`.
+`docs/sprints/SPRINT-6.md` / Weekend 6, `docs/sprints/SPRINT-7.md`, and
+`docs/sprints/SPRINT-8.md`.

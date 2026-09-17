@@ -41,5 +41,20 @@ also carries `stringConstantValue` when it's a `static final String`
 assigned a literal — the `private static final String VIEW = "...";`
 idiom of naming a view/redirect target once (SPRINT-7.md).
 
+An `'if'` body event also carries `thenEventCount` — how many of the
+following events belong to its then-branch, since the flat event list
+otherwise has no block boundaries. Lets a consumer correctly bound *any*
+then-branch (not just a bare `throw`/`return`), so a decision with a
+non-exiting then-branch (a side effect that falls through, no `else`)
+still resolves to two real edges instead of having its branch silently
+absorbed into whatever came next (`docs/sprints/SPRINT-8.md`). A
+`'call'`/`'construct'`/`'throw'` event, and a call-valued `'return'`,
+also carry the argument list exactly as written (`argumentsText` /
+`returnsCallArgumentsText`, e.g. `name, categoryId, price`) — not an
+evaluation, just the source text, always present as a string (empty for
+a genuinely zero-argument call) so the Inspector's Technical panel can
+show which variable is actually in play at a step (SPRINT-8.md).
+
 **Status:** implemented — see `docs/sprints/SPRINT-4.md` / Weekend 4,
-`docs/sprints/SPRINT-5.md` / Weekend 5, and `docs/sprints/SPRINT-7.md`.
+`docs/sprints/SPRINT-5.md` / Weekend 5, `docs/sprints/SPRINT-7.md`, and
+`docs/sprints/SPRINT-8.md`.

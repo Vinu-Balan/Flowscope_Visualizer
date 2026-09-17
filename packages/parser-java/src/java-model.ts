@@ -60,6 +60,15 @@ export interface JavaBodyEvent {
    * resolved type shares the call's name (docs/sprints/SPRINT-7.md).
    */
   readonly argumentCount?: number | undefined;
+  /**
+   * 'call'/'construct'/'throw': the argument list exactly as written
+   * (e.g. `name, categoryId, price`) — not an evaluation, just the source
+   * text, so the Inspector's Technical panel shows which variable or
+   * literal is actually passed at that step instead of a placeholder
+   * `(...)` (docs/sprints/SPRINT-8.md — "so the developer will know what
+   * value causes issues").
+   */
+  readonly argumentsText?: string | undefined;
 
   /** 'if': a best-effort human-readable rendering of the condition. */
   readonly conditionText?: string | undefined;
@@ -85,6 +94,8 @@ export interface JavaBodyEvent {
   /** 'return': the returned expression's call chain, if any (e.g. targetName "ResponseEntity", methodName "ok"). */
   readonly returnsCallTarget?: string | undefined;
   readonly returnsCallMethod?: string | undefined;
+  /** 'return': the returned call's argument list exactly as written — same rule as `argumentsText`. */
+  readonly returnsCallArgumentsText?: string | undefined;
   /** 'return': true for a bare `return null;`. */
   readonly returnsNullLiteral?: boolean | undefined;
   /** 'return': the returned string literal, when the return expression is (or starts with) one — typically a view name, e.g. `"redirect:/x"`. */

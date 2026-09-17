@@ -74,9 +74,9 @@ project.
 ## Current status
 
 **Weekends 1–6 (Desktop foundation, Project opening, Project scanner, API
-discovery, Business flow engine, Graph visualization) complete, plus a
-Sprint 7 real-world hardening pass** — see `docs/sprints/SPRINT-1.md`
-through `SPRINT-7.md`. FlowScope launches as a
+discovery, Business flow engine, Graph visualization) complete, plus two
+real-world hardening passes (Sprint 7, Sprint 8)** — see
+`docs/sprints/SPRINT-1.md` through `SPRINT-8.md`. FlowScope launches as a
 real Electron desktop app: Welcome/Workspace routes, resizable three-pane
 workspace shell, command palette, settings dialog, theme system, and a
 working IPC contract (ping, project-open dialog, project validation,
@@ -105,7 +105,14 @@ analyze their own body, not whichever was declared first), inlines a bare
 self-call to a private same-class helper, and resolves a
 `private static final String` constant's literal value on `return`
 (SPRINT-7.md, found and fixed against the user's own real Spring Boot
-projects, not just the fixture). All backed by tested `packages/core`,
+projects, not just the fixture). A decision whose then-branch is a
+non-exiting side effect (no `else`, no throw/return — just falls through)
+produces two correctly labeled edges instead of one mislabeled one, and
+every call/construct/throw/return step's Technical detail shows the real
+argument text (e.g. `product.setName(name)`) instead of a `(...)`
+placeholder, so a developer can see exactly which variable is in play at
+a step without opening the source (SPRINT-8.md). All backed by tested
+`packages/core`,
 `packages/logging`, `packages/config`, `packages/ipc`,
 `packages/workspace`, `packages/scanner`, `packages/parser-java`,
 `packages/parser-spring`, `packages/graph-schema`, `packages/graph-engine`,

@@ -48,6 +48,8 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
    - Real-world extraction fidelity & naming quality hardening
      (`SPRINT-7.md`) — complete; doesn't map onto its own weekend, see
      SPRINT-7.md's Goal section
+   - Branch correctness & argument visibility hardening (`SPRINT-8.md`) —
+     complete; same as SPRINT-7, doesn't map onto its own weekend
 7. Inspector
 8. Code navigation
 9. Search & UX polish
@@ -90,12 +92,17 @@ business flow per API, `packages/graph-engine`/`packages/graph-schema`
 assemble and validate the BEG), SPRINT-6 (graph visualization — the
 BEG now renders as a real interactive flowchart, `packages/visualization`
 via Cytoscape.js + ELK.js: decision hexagons, Yes/No branch edges,
-pan/zoom, click-to-select), and SPRINT-7 (a real-world hardening pass —
+pan/zoom, click-to-select), SPRINT-7 (a real-world hardening pass —
 overloaded handler methods now resolve to their own body instead of
 whichever was declared first, a bare self-call to a private helper is
 inlined, a `static final String` constant resolves on `return`, and the
 node-detail panel's Technical/Flow sections carry real detail instead of
-one line) are complete and verified. Selecting a node already surfaces
+one line), and SPRINT-8 (a second hardening pass — a decision whose
+then-branch is a non-exiting side effect now produces two correctly
+labeled edges instead of one mislabeled one, and every
+call/construct/throw/return step's Technical line shows the real
+argument text, e.g. `product.setName(name)`, instead of a `(...)`
+placeholder) are complete and verified. Selecting a node already surfaces
 business + technical detail in the side panel, a partial step toward the
 full Inspector acceptance criterion below — the "Open Source" jump to
 Monaco (source navigation isn't wired in yet) is the remaining work,

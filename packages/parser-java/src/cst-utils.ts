@@ -86,6 +86,7 @@ export function renderTokensInOrder(node: unknown): string {
     .map((token) => token.image)
     .join(' ')
     .replace(/\s*\.\s*/gu, '.')
+    .replace(/\s+\(/gu, '(')
     .replace(/\(\s+/gu, '(')
     .replace(/\s+\)/gu, ')')
     .replace(/\s+,/gu, ',');

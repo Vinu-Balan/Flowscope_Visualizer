@@ -199,7 +199,8 @@ function handleCall(
   }
 
   const description = describeCall(methodName, noun, event.firstStringArgument);
-  const technicalName = targetName ? `${targetName}.${methodName}(...)` : `${methodName}(...)`;
+  const args = event.argumentsText ?? '';
+  const technicalName = targetName ? `${targetName}.${methodName}(${args})` : `${methodName}(${args})`;
   addStep(
     ctx,
     description,
@@ -250,13 +251,14 @@ function handleReturn(
       literal !== undefined
         ? describeViewReturn(literal)
         : describeReturn(event.returnsCallTarget, event.returnsCallMethod);
+    const returnArgs = event.returnsCallArgumentsText ?? '';
     const technicalName =
       literal !== undefined
         ? returnLiteralTechnicalName(event, literal)
         : event.returnsCallTarget
-          ? `return ${event.returnsCallTarget}.${event.returnsCallMethod ?? ''}(...)`
+          ? `return ${event.returnsCallTarget}.${event.returnsCallMethod ?? ''}(${returnArgs})`
           : event.returnsCallMethod
-            ? `return ${event.returnsCallMethod}(...)`
+            ? `return ${event.returnsCallMethod}(${returnArgs})`
             : 'return ...';
     addStep(
       ctx,
@@ -297,7 +299,10 @@ function handleReturn(
   }
 
   const description = describeCall(methodName, noun);
-  const technicalName = targetName ? `${targetName}.${methodName}(...)` : `${methodName}(...)`;
+  const returnCallArgs = event.returnsCallArgumentsText ?? '';
+  const technicalName = targetName
+    ? `${targetName}.${methodName}(${returnCallArgs})`
+    : `${methodName}(${returnCallArgs})`;
   addStep(
     ctx,
     description,
@@ -413,7 +418,7 @@ function processEventAt(
     addStep(
       ctx,
       description,
-      `new ${event.methodName ?? 'Object'}(...)`,
+      `new ${event.methodName ?? 'Object'}(${event.argumentsText ?? ''})`,
       sourceOf(ownerFile, event.line, method.name, ownerType.name),
     );
     return index + 1;
@@ -423,7 +428,7 @@ function processEventAt(
     addStep(
       ctx,
       description,
-      `throw ${event.exceptionType ?? 'Exception'}`,
+      `throw new ${event.exceptionType ?? 'Exception'}(${event.argumentsText ?? ''})`,
       sourceOf(ownerFile, event.line, method.name, ownerType.name),
     );
     return index + 1;

@@ -44,7 +44,7 @@ describe('parseJavaFile — method body events', () => {
   it('extracts a bare method call statement', () => {
     const events = bodyEventsOf('class Foo { void m() { existsByEmail(email); } }');
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: '', methodName: 'existsByEmail', argumentCount: 1 },
+      { kind: 'call', line: 1, targetName: '', methodName: 'existsByEmail', argumentCount: 1, argumentsText: 'email' },
     ]);
   });
 
@@ -53,14 +53,14 @@ describe('parseJavaFile — method body events', () => {
       'class Foo { void m() { Customer c = customerService.findById(id); } }',
     );
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: 'customerService', methodName: 'findById', argumentCount: 1 },
+      { kind: 'call', line: 1, targetName: 'customerService', methodName: 'findById', argumentCount: 1, argumentsText: 'id' },
     ]);
   });
 
   it('extracts a bare statement call with a dotted target', () => {
     const events = bodyEventsOf('class Foo { void m() { customersById.put(id, customer); } }');
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: 'customersById', methodName: 'put', argumentCount: 2 },
+      { kind: 'call', line: 1, targetName: 'customersById', methodName: 'put', argumentCount: 2, argumentsText: 'id, customer' },
     ]);
   });
 
@@ -69,7 +69,13 @@ describe('parseJavaFile — method body events', () => {
       'class Foo { void m() { Customer c = new Customer(UUID.randomUUID().toString(), email, name); } }',
     );
     expect(events).toEqual([
-      { kind: 'construct', line: 1, methodName: 'Customer', looksGenerated: true },
+      {
+        kind: 'construct',
+        line: 1,
+        methodName: 'Customer',
+        looksGenerated: true,
+        argumentsText: 'UUID.randomUUID().toString(), email, name',
+      },
     ]);
   });
 
@@ -78,7 +84,7 @@ describe('parseJavaFile — method body events', () => {
       'class Foo { void m() { Customer c = new Customer(email, name); } }',
     );
     expect(events).toEqual([
-      { kind: 'construct', line: 1, methodName: 'Customer', looksGenerated: false },
+      { kind: 'construct', line: 1, methodName: 'Customer', looksGenerated: false, argumentsText: 'email, name' },
     ]);
   });
 
@@ -97,13 +103,19 @@ describe('parseJavaFile — method body events', () => {
       {
         kind: 'if',
         line: 4,
-        conditionText: 'existsByEmail(...)',
+        conditionText: 'existsByEmail(email)',
         guardThrows: true,
         guardReturns: false,
         thenEventCount: 1,
       },
-      { kind: 'call', line: 4, targetName: '', methodName: 'existsByEmail', argumentCount: 1 },
-      { kind: 'throw', line: 5, exceptionType: 'IllegalStateException', exceptionMessage: 'dup' },
+      { kind: 'call', line: 4, targetName: '', methodName: 'existsByEmail', argumentCount: 1, argumentsText: 'email' },
+      {
+        kind: 'throw',
+        line: 5,
+        exceptionType: 'IllegalStateException',
+        exceptionMessage: 'dup',
+        argumentsText: '"dup"',
+      },
     ]);
   });
 
@@ -134,7 +146,13 @@ describe('parseJavaFile — method body events', () => {
   it('extracts a return statement that returns a call chain result', () => {
     const events = bodyEventsOf('class Foo { void m() { return ResponseEntity.ok(customer); } }');
     expect(events).toEqual([
-      { kind: 'return', line: 1, returnsCallTarget: 'ResponseEntity', returnsCallMethod: 'ok' },
+      {
+        kind: 'return',
+        line: 1,
+        returnsCallTarget: 'ResponseEntity',
+        returnsCallMethod: 'ok',
+        returnsCallArgumentsText: 'customer',
+      },
     ]);
   });
 
@@ -148,7 +166,14 @@ describe('parseJavaFile — method body events', () => {
       'class Foo { void m() { customerService.register(request.email(), request.fullName()); } }',
     );
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: 'customerService', methodName: 'register', argumentCount: 2 },
+      {
+        kind: 'call',
+        line: 1,
+        targetName: 'customerService',
+        methodName: 'register',
+        argumentCount: 2,
+        argumentsText: 'request.email(), request.fullName()',
+      },
     ]);
   });
 
@@ -162,14 +187,14 @@ describe('parseJavaFile — this.field.method(...) calls (docs/sprints/SPRINT-7.
   it('extracts an explicitly this-qualified field call, not just a bare fqnOrRefType one', () => {
     const events = bodyEventsOf('class Foo { void m() { this.categoryService.addCategory(name); } }');
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: 'categoryService', methodName: 'addCategory', argumentCount: 1 },
+      { kind: 'call', line: 1, targetName: 'categoryService', methodName: 'addCategory', argumentCount: 1, argumentsText: 'name' },
     ]);
   });
 
   it('extracts a this-qualified call with no intervening field (a self-call)', () => {
     const events = bodyEventsOf('class Foo { void m() { this.doSomething(); } }');
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: '', methodName: 'doSomething', argumentCount: 0 },
+      { kind: 'call', line: 1, targetName: '', methodName: 'doSomething', argumentCount: 0, argumentsText: '' },
     ]);
   });
 
@@ -178,7 +203,7 @@ describe('parseJavaFile — this.field.method(...) calls (docs/sprints/SPRINT-7.
       'class Foo { void m() { this.repository.findById(id).orElseThrow(); } }',
     );
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: 'repository', methodName: 'findById', argumentCount: 1 },
+      { kind: 'call', line: 1, targetName: 'repository', methodName: 'findById', argumentCount: 1, argumentsText: 'id' },
     ]);
   });
 });
@@ -194,7 +219,7 @@ describe('parseJavaFile — builder-pattern construction (docs/sprints/SPRINT-7.
   it('does not misfire for an unrelated *.builder() call with no trailing build()', () => {
     const events = bodyEventsOf('class Foo { void m() { StringBuilder sb = text.builder(); } }');
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: 'text', methodName: 'builder', argumentCount: 0 },
+      { kind: 'call', line: 1, targetName: 'text', methodName: 'builder', argumentCount: 0, argumentsText: '' },
     ]);
   });
 });
@@ -212,6 +237,7 @@ describe('parseJavaFile — string-literal arguments and returns (docs/sprints/S
         methodName: 'addAttribute',
         argumentCount: 2,
         firstStringArgument: 'username',
+        argumentsText: '"username", username',
       },
     ]);
   });
@@ -219,7 +245,14 @@ describe('parseJavaFile — string-literal arguments and returns (docs/sprints/S
   it('does not capture a non-literal first argument', () => {
     const events = bodyEventsOf('class Foo { void m() { model.addAttribute(key, value); } }');
     expect(events).toEqual([
-      { kind: 'call', line: 1, targetName: 'model', methodName: 'addAttribute', argumentCount: 2 },
+      {
+        kind: 'call',
+        line: 1,
+        targetName: 'model',
+        methodName: 'addAttribute',
+        argumentCount: 2,
+        argumentsText: 'key, value',
+      },
     ]);
   });
 
@@ -236,7 +269,13 @@ describe('parseJavaFile — string-literal arguments and returns (docs/sprints/S
   it('does not treat a plain call return as a string literal', () => {
     const events = bodyEventsOf('class Foo { void m() { return ResponseEntity.ok(x); } }');
     expect(events).toEqual([
-      { kind: 'return', line: 1, returnsCallTarget: 'ResponseEntity', returnsCallMethod: 'ok' },
+      {
+        kind: 'return',
+        line: 1,
+        returnsCallTarget: 'ResponseEntity',
+        returnsCallMethod: 'ok',
+        returnsCallArgumentsText: 'x',
+      },
     ]);
   });
 
@@ -250,6 +289,7 @@ describe('parseJavaFile — string-literal arguments and returns (docs/sprints/S
         line: 1,
         exceptionType: 'IllegalStateException',
         exceptionMessage: 'Email already exists: ',
+        argumentsText: '"Email already exists: " + email',
       },
     ]);
   });

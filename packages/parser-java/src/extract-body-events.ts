@@ -245,6 +245,20 @@ function firstArgumentLiteral(argumentList: unknown): string | undefined {
   return firstArgumentExpression ? leadingStringLiteral(firstArgumentExpression) : undefined;
 }
 
+/**
+ * The call/constructor/throw's argument list exactly as written, e.g.
+ * `name, categoryId, price` — not an evaluation, just the source text
+ * (`renderTokensInOrder`), so a developer reading the Technical panel
+ * sees which variable or literal is actually in play at that step without
+ * opening the source file (docs/sprints/SPRINT-8.md). Always a string,
+ * empty for a genuinely zero-argument call — never omitted, so a caller
+ * can tell "confirmed no arguments" from "not captured" and never renders
+ * a misleading `(...)` placeholder for a call that truly takes nothing.
+ */
+function argumentsTextOf(argumentList: unknown): string {
+  return argumentList ? renderTokensInOrder(argumentList) : '';
+}
+
 function emitExpressionEvent(expressionNode: unknown, events: JavaBodyEvent[]): void {
   const primary = unwrapToPrimary(expressionNode);
   if (!primary) {
@@ -264,6 +278,7 @@ function emitExpressionEvent(expressionNode: unknown, events: JavaBodyEvent[]): 
       line: construct.line,
       methodName: construct.typeName,
       looksGenerated: construct.looksGenerated,
+      argumentsText: argumentsTextOf(construct.argumentList),
     });
     return;
   }
@@ -279,6 +294,7 @@ function emitExpressionEvent(expressionNode: unknown, events: JavaBodyEvent[]): 
       methodName: call.methodName,
       argumentCount,
       ...(firstStringArgument !== undefined ? { firstStringArgument } : {}),
+      argumentsText: argumentsTextOf(call.argumentList),
     });
   }
 }
@@ -313,12 +329,14 @@ function processThrow(throwStatement: unknown, events: JavaBodyEvent[]): void {
   const line = findFirstToken(throwStatement)?.startLine ?? 0;
   let exceptionType = 'Exception';
   let exceptionMessage: string | undefined;
+  let argumentsText: string | undefined;
   if (expression) {
     const primary = unwrapToPrimary(expression);
     const construct = primary ? describeConstruct(primary) : undefined;
     if (construct) {
       exceptionType = construct.typeName;
       exceptionMessage = firstArgumentLiteral(construct.argumentList);
+      argumentsText = argumentsTextOf(construct.argumentList);
     }
   }
   events.push({
@@ -326,6 +344,7 @@ function processThrow(throwStatement: unknown, events: JavaBodyEvent[]): void {
     line,
     exceptionType,
     ...(exceptionMessage !== undefined ? { exceptionMessage } : {}),
+    ...(argumentsText !== undefined ? { argumentsText } : {}),
   });
 }
 
@@ -354,7 +373,13 @@ function processReturn(returnStatement: unknown, events: JavaBodyEvent[]): void 
   const primary = unwrapToPrimary(expression);
   const call = primary ? describeCallAtPrimary(primary) : undefined;
   if (call) {
-    events.push({ kind: 'return', line, returnsCallTarget: call.targetName, returnsCallMethod: call.methodName });
+    events.push({
+      kind: 'return',
+      line,
+      returnsCallTarget: call.targetName,
+      returnsCallMethod: call.methodName,
+      returnsCallArgumentsText: argumentsTextOf(call.argumentList),
+    });
     return;
   }
 
@@ -403,10 +428,11 @@ function processIf(ifStatement: unknown, events: JavaBodyEvent[], depth: number)
   if (conditionExpression) {
     const primary = unwrapToPrimary(conditionExpression);
     const call = primary ? describeCallAtPrimary(primary) : undefined;
+    const callArgsText = call ? argumentsTextOf(call.argumentList) : '';
     conditionText = call
       ? call.targetName
-        ? `${call.targetName}.${call.methodName}(...)`
-        : `${call.methodName}(...)`
+        ? `${call.targetName}.${call.methodName}(${callArgsText})`
+        : `${call.methodName}(${callArgsText})`
       : renderTokensInOrder(conditionExpression);
   }
 

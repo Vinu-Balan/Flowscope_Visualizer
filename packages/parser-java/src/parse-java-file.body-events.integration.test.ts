@@ -24,8 +24,21 @@ describe('parseJavaFile — body events against the real fixture', () => {
 
     const register = controller?.methods.find((m) => m.name === 'register');
     expect(register?.bodyEvents).toEqual([
-      { kind: 'call', line: 23, targetName: 'customerService', methodName: 'register', argumentCount: 2 },
-      { kind: 'return', line: 24, returnsCallTarget: 'ResponseEntity', returnsCallMethod: 'ok' },
+      {
+        kind: 'call',
+        line: 23,
+        targetName: 'customerService',
+        methodName: 'register',
+        argumentCount: 2,
+        argumentsText: 'request.email(), request.fullName()',
+      },
+      {
+        kind: 'return',
+        line: 24,
+        returnsCallTarget: 'ResponseEntity',
+        returnsCallMethod: 'ok',
+        returnsCallArgumentsText: 'customer',
+      },
     ]);
   });
 
@@ -35,7 +48,14 @@ describe('parseJavaFile — body events against the real fixture', () => {
     const findById = controller?.methods.find((m) => m.name === 'findById');
 
     expect(findById?.bodyEvents).toEqual([
-      { kind: 'call', line: 29, targetName: 'customerService', methodName: 'findById', argumentCount: 1 },
+      {
+        kind: 'call',
+        line: 29,
+        targetName: 'customerService',
+        methodName: 'findById',
+        argumentCount: 1,
+        argumentsText: 'id',
+      },
       {
         kind: 'if',
         line: 30,
@@ -49,8 +69,15 @@ describe('parseJavaFile — body events against the real fixture', () => {
         line: 31,
         returnsCallTarget: 'ResponseEntity',
         returnsCallMethod: 'notFound',
+        returnsCallArgumentsText: '',
       },
-      { kind: 'return', line: 33, returnsCallTarget: 'ResponseEntity', returnsCallMethod: 'ok' },
+      {
+        kind: 'return',
+        line: 33,
+        returnsCallTarget: 'ResponseEntity',
+        returnsCallMethod: 'ok',
+        returnsCallArgumentsText: 'customer',
+      },
     ]);
   });
 
@@ -64,12 +91,19 @@ describe('parseJavaFile — body events against the real fixture', () => {
       {
         kind: 'if',
         line: 14,
-        conditionText: 'existsByEmail(...)',
+        conditionText: 'existsByEmail(email)',
         guardThrows: true,
         guardReturns: false,
         thenEventCount: 1,
       },
-      { kind: 'call', line: 14, targetName: '', methodName: 'existsByEmail', argumentCount: 1 },
+      {
+        kind: 'call',
+        line: 14,
+        targetName: '',
+        methodName: 'existsByEmail',
+        argumentCount: 1,
+        argumentsText: 'email',
+      },
       {
         kind: 'throw',
         line: 15,
@@ -77,9 +111,23 @@ describe('parseJavaFile — body events against the real fixture', () => {
         // The exception's message is `"Customer already exists: " + email` —
         // a concatenation, so only the leading literal is captured.
         exceptionMessage: 'Customer already exists: ',
+        argumentsText: '"Customer already exists: " + email',
       },
-      { kind: 'construct', line: 17, methodName: 'Customer', looksGenerated: true },
-      { kind: 'call', line: 18, targetName: 'customersById', methodName: 'put', argumentCount: 2 },
+      {
+        kind: 'construct',
+        line: 17,
+        methodName: 'Customer',
+        looksGenerated: true,
+        argumentsText: 'UUID.randomUUID().toString(), email, fullName',
+      },
+      {
+        kind: 'call',
+        line: 18,
+        targetName: 'customersById',
+        methodName: 'put',
+        argumentCount: 2,
+        argumentsText: 'customer.getId(), customer',
+      },
       { kind: 'return', line: 19, returnsIdentifier: 'customer' },
     ]);
   });
@@ -94,7 +142,13 @@ describe('parseJavaFile — body events against the real fixture', () => {
     // fields (only if/local-var-decl/bare-statement calls get their own
     // 'call' event — see docs/sprints/SPRINT-5.md).
     expect(findById?.bodyEvents).toEqual([
-      { kind: 'return', line: 27, returnsCallTarget: 'customersById', returnsCallMethod: 'get' },
+      {
+        kind: 'return',
+        line: 27,
+        returnsCallTarget: 'customersById',
+        returnsCallMethod: 'get',
+        returnsCallArgumentsText: 'id',
+      },
     ]);
   });
 });
