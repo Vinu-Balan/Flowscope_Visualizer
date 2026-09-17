@@ -21,7 +21,15 @@ describe('parseJavaFile', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.types).toEqual([
-      { name: 'Foo', kind: 'class', annotations: [], methods: [], fields: [], line: 2 },
+      {
+        name: 'Foo',
+        kind: 'class',
+        annotations: [],
+        methods: [],
+        fields: [],
+        line: 2,
+        implementsTypes: [],
+      },
     ]);
   });
 
@@ -179,5 +187,107 @@ describe('parseJavaFile', () => {
     if (!result.ok) return;
     expect(result.value.types[0]?.line).toBe(3);
     expect(result.value.types[0]?.methods[0]?.line).toBe(5);
+  });
+});
+
+describe('parseJavaFile — interfaces, implements/extends (docs/sprints/SPRINT-13.md)', () => {
+  it('extracts an interface as its own type, kind "interface"', () => {
+    const source = [
+      'package com.example;',
+      '',
+      'public interface CommentService {',
+      '    Comment createComment(Long postId, String text);',
+      '}',
+    ].join('\n');
+    const result = parseJavaFile(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.types).toEqual([
+      {
+        name: 'CommentService',
+        kind: 'interface',
+        annotations: [],
+        methods: [
+          { name: 'createComment', annotations: [], line: 4, parameterCount: 2, bodyEvents: [] },
+        ],
+        fields: [],
+        line: 3,
+        implementsTypes: [],
+      },
+    ]);
+  });
+
+  it("records a class's implements list, simple names only", () => {
+    const source = [
+      'package com.example;',
+      '',
+      'public class CommentServiceImplementation implements CommentService, Auditable {',
+      '    public Comment createComment(Long postId, String text) { return null; }',
+      '}',
+    ].join('\n');
+    const result = parseJavaFile(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.types[0]?.implementsTypes).toEqual(['CommentService', 'Auditable']);
+  });
+
+  it("records a class's single extends target", () => {
+    const source = [
+      'package com.example;',
+      '',
+      'public class AdminController extends BaseController {',
+      '}',
+    ].join('\n');
+    const result = parseJavaFile(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.types[0]?.extendsType).toBe('BaseController');
+  });
+
+  it('records an interface extending multiple other interfaces into implementsTypes', () => {
+    const source = [
+      'package com.example;',
+      '',
+      'public interface CommentService extends BaseService, Auditable {',
+      '}',
+    ].join('\n');
+    const result = parseJavaFile(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.types[0]?.implementsTypes).toEqual(['BaseService', 'Auditable']);
+  });
+
+  it("extracts a default interface method's real body, not just an empty stub", () => {
+    const source = [
+      'package com.example;',
+      '',
+      'public interface CommentService {',
+      '    default void audit(String action) {',
+      '        auditLog.append(action);',
+      '    }',
+      '}',
+    ].join('\n');
+    const result = parseJavaFile(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const method = result.value.types[0]?.methods[0];
+    expect(method?.name).toBe('audit');
+    expect(method?.bodyEvents).toEqual([
+      expect.objectContaining({ kind: 'call', targetName: 'auditLog', methodName: 'append' }),
+    ]);
+  });
+
+  it('an abstract interface method (no body) still parses with empty bodyEvents, not an error', () => {
+    const source = [
+      'package com.example;',
+      '',
+      'public interface CommentService {',
+      '    void deleteComment(Long id);',
+      '}',
+    ].join('\n');
+    const result = parseJavaFile(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.types[0]?.methods[0]?.bodyEvents).toEqual([]);
   });
 });

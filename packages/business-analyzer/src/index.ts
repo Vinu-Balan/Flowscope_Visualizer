@@ -2,10 +2,13 @@ export type { BusinessFlow, BusinessFlowEdge, BusinessStep } from './business-fl
 export { inferBusinessFlow } from './infer-business-flow';
 export {
   describeCall,
+  describeCase,
   describeCatch,
   describeConstruct,
   describeDecision,
+  describeLoop,
   describeReturn,
+  describeSwitch,
   describeThrow,
   describeViewReturn,
   domainNounFromPath,
@@ -13,5 +16,5 @@ export {
   humanizeIdentifier,
 } from './naming';
 export type { CallDescription, DecisionDescription } from './naming';
-export { buildTypeIndex } from './type-index';
-export type { TypeIndexEntry } from './type-index';
+export { buildTypeIndex, pickImplementation } from './type-index';
+export type { ProjectTypeIndex, TypeIndexEntry } from './type-index';

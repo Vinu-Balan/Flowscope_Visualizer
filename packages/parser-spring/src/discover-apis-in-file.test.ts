@@ -15,7 +15,7 @@ function method(overrides: Partial<JavaMethod> & Pick<JavaMethod, 'name'>): Java
 }
 
 function javaType(overrides: Partial<JavaType> & Pick<JavaType, 'name'>): JavaType {
-  return { kind: 'class', annotations: [], methods: [], fields: [], line: 1, ...overrides };
+  return { kind: 'class', annotations: [], methods: [], fields: [], line: 1, implementsTypes: [], ...overrides };
 }
 
 function sourceFile(types: JavaType[]): JavaSourceFile {

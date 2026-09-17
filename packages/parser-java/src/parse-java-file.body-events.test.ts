@@ -412,3 +412,154 @@ describe('parseJavaFile — try/catch (docs/sprints/SPRINT-12.md)', () => {
     ]);
   });
 });
+
+describe('parseJavaFile — loops (docs/sprints/SPRINT-13.md)', () => {
+  it('extracts an enhanced for-each, capturing the per-item variable type and walking the body once', () => {
+    const source = `
+      class Foo {
+        void m(List<Comment> comments) {
+          for (Comment each : comments) {
+            commentRepository.save(each);
+          }
+        }
+      }
+    `;
+    const events = bodyEventsOf(source);
+    expect(events).toEqual([
+      {
+        kind: 'loop',
+        line: 4,
+        conditionText: 'Comment each : comments',
+        loopEventCount: 1,
+        loopVariableType: 'Comment',
+      },
+      {
+        kind: 'call',
+        line: 5,
+        targetName: 'commentRepository',
+        methodName: 'save',
+        argumentCount: 1,
+        argumentsText: 'each',
+      },
+    ]);
+  });
+
+  it('extracts a basic for loop, rendering its header but without a loopVariableType', () => {
+    const source = `
+      class Foo {
+        void m() {
+          for (int i = 0; i < 10; i++) {
+            helper.process(i);
+          }
+        }
+      }
+    `;
+    const events = bodyEventsOf(source);
+    expect(events[0]).toEqual({
+      kind: 'loop',
+      line: 4,
+      conditionText: 'int i = 0; i < 10; i ++',
+      loopEventCount: 1,
+    });
+    expect(events[1]).toMatchObject({ kind: 'call', methodName: 'process' });
+  });
+
+  it('extracts a while loop', () => {
+    const events = bodyEventsOf(
+      'class Foo { void m() { while (iterator.hasNext()) { helper.process(iterator.next()); } } }',
+    );
+    expect(events[0]).toEqual({
+      kind: 'loop',
+      line: 1,
+      conditionText: 'iterator.hasNext()',
+      loopEventCount: 1,
+    });
+    expect(events[1]).toMatchObject({ kind: 'call', methodName: 'process' });
+  });
+
+  it('extracts a do-while loop', () => {
+    const events = bodyEventsOf(
+      'class Foo { void m() { do { helper.process(); } while (iterator.hasNext()); } }',
+    );
+    expect(events[0]).toEqual({
+      kind: 'loop',
+      line: 1,
+      conditionText: 'iterator.hasNext()',
+      loopEventCount: 1,
+    });
+    expect(events[1]).toMatchObject({ kind: 'call', methodName: 'process' });
+  });
+
+  it('walks a loop body containing a decision, giving the if its own nested events', () => {
+    const source = `
+      class Foo {
+        void m(List<Order> orders) {
+          for (Order order : orders) {
+            if (order.isExpired()) {
+              expiredOrders.add(order);
+            }
+          }
+        }
+      }
+    `;
+    const events = bodyEventsOf(source);
+    expect(events.map((event) => event.kind)).toEqual(['loop', 'if', 'call', 'call']);
+    expect(events[0]).toMatchObject({ kind: 'loop', loopEventCount: 3 });
+  });
+});
+
+describe('parseJavaFile — switch (docs/sprints/SPRINT-13.md)', () => {
+  it('extracts one case event per label, including default, each bounding its own body', () => {
+    const source = `
+      class Foo {
+        void m() {
+          switch (status) {
+            case ACTIVE:
+              activator.activate();
+              break;
+            case INACTIVE:
+              deactivator.deactivate();
+              break;
+            default:
+              handler.handleUnknown();
+          }
+        }
+      }
+    `;
+    const events = bodyEventsOf(source);
+    expect(events.map((event) => event.kind)).toEqual([
+      'switch',
+      'case',
+      'call',
+      'case',
+      'call',
+      'case',
+      'call',
+    ]);
+    expect(events[0]).toMatchObject({ kind: 'switch', conditionText: 'status', caseCount: 3 });
+    expect(events[1]).toMatchObject({ kind: 'case', caseLabel: 'ACTIVE', caseEventCount: 1 });
+    expect(events[3]).toMatchObject({ kind: 'case', caseLabel: 'INACTIVE', caseEventCount: 1 });
+    expect(events[5]).toMatchObject({ kind: 'case', caseLabel: 'default', caseEventCount: 1 });
+  });
+
+  it('a case with an empty body (pure fallthrough) still gets its own zero-length case event', () => {
+    const source = `
+      class Foo {
+        void m() {
+          switch (status) {
+            case ACTIVE:
+            case PENDING:
+              activator.activate();
+              break;
+            default:
+              handler.handleUnknown();
+          }
+        }
+      }
+    `;
+    const events = bodyEventsOf(source);
+    expect(events[0]).toMatchObject({ kind: 'switch', caseCount: 3 });
+    expect(events[1]).toMatchObject({ kind: 'case', caseLabel: 'ACTIVE', caseEventCount: 0 });
+    expect(events[2]).toMatchObject({ kind: 'case', caseLabel: 'PENDING', caseEventCount: 1 });
+  });
+});

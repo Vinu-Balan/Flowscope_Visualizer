@@ -20,17 +20,45 @@ Implemented so far (`docs/sprints/SPRINT-5.md`, extended in
 controller method's own call graph via `packages/parser-java`'s body
 events, follows same-project field-typed and bare self-calls one level
 deep (a project type index resolves `field.method(...)` to its declaring
-class), and names each step via a small, data-driven verb/prefix table
-(`findBy*` → a lookup, `exists*`/a null-check → a decision, `save`/`put`
-→ a database operation, `register`/`create` → a business step, …)
-combined with a domain noun derived from the owning type's name. Loops,
-switch, and general lambda bodies aren't modeled; call resolution beyond
-`MAX_INLINE_DEPTH` (8, raised from 1 in SPRINT-12 — real endpoints
-routinely chain 3+ hops deep) or past `MAX_TOTAL_STEPS` (150, a safety
-valve for a call graph that's wide rather than deep) falls back to a
-described-but-not-inlined step rather than erroring; `ctx.visited`
-(keyed by type/method/line) prevents infinite recursion on a real call
-cycle regardless of either bound (`docs/sprints/SPRINT-12.md`).
+class — including redirecting through a service *interface* to its real
+implementing class, see below), and names each step via a small,
+data-driven verb/prefix table (`findBy*` → a lookup, `exists*`/a
+null-check → a decision, `save`/`put` → a database operation,
+`register`/`create` → a business step, …) combined with a domain noun
+derived from the owning type's name. A `finally` clause, an arrow-style
+`switch` *expression*, and general lambda/stream bodies aren't modeled;
+call resolution beyond `MAX_INLINE_DEPTH` (8, raised from 1 in SPRINT-12
+— real endpoints routinely chain 3+ hops deep) or past `MAX_TOTAL_STEPS`
+(150, a safety valve for a call graph that's wide rather than deep) falls
+back to a described-but-not-inlined step rather than erroring;
+`ctx.visited` (keyed by type/method/line) prevents infinite recursion on
+a real call cycle regardless of either bound (`docs/sprints/SPRINT-12.md`).
+
+A field's declared type resolving to an `interface` (rather than a
+`class`) redirects through `ProjectTypeIndex.implementorsByInterfaceName`
+to a real implementing class in the project — `pickImplementation`
+resolves unambiguously with one implementation, prefers the shortest name
+starting with the interface's own name (the conventional `<Interface>Impl`/
+`<Interface>Implementation` pattern) with more than one, and correctly
+falls back to a plain, non-inlined step (not a silent gap) with zero.
+Previously every field typed as a service interface — the standard Spring
+interface+impl pattern — simply couldn't resolve at all, since
+`packages/parser-java` didn't parse `interface` declarations in the first
+place; this was SPRINT-12's own top-ranked deferred item, closed in
+SPRINT-13 after being independently reconfirmed by direct user feedback
+("nodes end without any meaning") — one real endpoint's rendered flow
+went from 4 steps to 32 purely from this fix. `domainNounFromType` also
+strips its suffix pattern repeatedly now, not once, so a resolved
+`CommentServiceImplementation` reads as "Comment", not "CommentService"
+(`docs/sprints/SPRINT-13.md`).
+
+A diagnostic call — a logger statement (`log.info(...)`, matched either
+by a declared `Logger`/`Log`-typed field or by the conventional bare
+variable names `log`/`logger`/`LOG`/`LOGGER` a logger gets even when
+Lombok's `@Slf4j` synthesizes it with no field to check against) or a
+`System.out`/`System.err` print — produces zero steps, per direct
+request to leave logs out of the business flow entirely (`isLoggingCall`,
+`docs/sprints/SPRINT-13.md`).
 
 Both the API's entry method and any call resolved for inlining are picked
 from *every* same-named candidate on the target type, not just the first
@@ -97,6 +125,27 @@ previously only the wrapper (`ResponseEntity.ok`) was ever visible, the
 actual business call invisible (`docs/sprints/SPRINT-12.md`; this single
 fix turned one real endpoint's rendered flow from 2 steps into 10).
 
+A loop (an enhanced `for`, basic `for`, `while`, or `do`-`while`) gets its
+own entry step (`handleLoop`/`describeLoop`) with its body walked exactly
+once — the honest limit of what a static flow diagram can represent —
+connected via a `'loop'`-type edge (`BegEdgeType` already had this;
+SPRINT-13 is the first thing to actually use it); trailing code resumes
+from the body's own tail, with no merge-point logic needed since a loop
+never diverges into branches. An enhanced `for`'s per-item variable type
+names the step ("For Each Comment"); a basic `for`/`while`/`do-while`, or
+an item type that's just a scalar (`Long`/`String`/etc. — found via
+BookMyShow's `for (Long seatId : ...)`), falls back to a plain "Repeat".
+A classic `switch` (`case X: ...; break;`/`default:` — the arrow-style
+*expression* form isn't modeled, see `packages/parser-java`'s README) is
+an N-way branch, the same layout as `try`/`catch` generalized from
+exception types to case labels: one entry step for the switched
+expression, each case (`default` included) hanging its own steps
+directly off it via a `'conditional'`-type edge labeled with the case
+value (`handleSwitch`/`describeCase`, `docs/sprints/SPRINT-13.md` —
+scoped after confirming zero real occurrences of the classic statement
+form but common, business-relevant enhanced-`for` usage across all four
+of the user's projects).
+
 Every step's `technicalName` shows the real argument text the call
 actually passes (e.g. `product.setName(name)`, not
 `product.setName(...)`), threaded through from `JavaBodyEvent.argumentsText`
@@ -111,5 +160,5 @@ never depend on React, Electron, or Cytoscape (`docs/ARCHITECTURE.md`).
 
 **Status:** implemented — see `docs/sprints/SPRINT-5.md` / Weekend 5,
 `docs/sprints/SPRINT-6.md` / Weekend 6, `docs/sprints/SPRINT-7.md`,
-`docs/sprints/SPRINT-8.md`, `docs/sprints/SPRINT-9.md`, and
-`docs/sprints/SPRINT-12.md`.
+`docs/sprints/SPRINT-8.md`, `docs/sprints/SPRINT-9.md`,
+`docs/sprints/SPRINT-12.md`, and `docs/sprints/SPRINT-13.md`.

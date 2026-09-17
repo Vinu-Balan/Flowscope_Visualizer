@@ -594,3 +594,298 @@ describe('inferBusinessFlow — a real try/catch, both branches (docs/sprints/SP
     expect(rethrowStep && edges.some((edge) => edge.from === rethrowStep.id)).toBe(false);
   });
 });
+
+const INTERFACE_CONTROLLER_SOURCE = `
+  package com.example;
+
+  @RestController
+  public class CommentController {
+      private final CommentService commentService;
+
+      @PostMapping("/comment/create")
+      public ResponseEntity<Comment> createComment(Long postId, String text) {
+          return ResponseEntity.ok(commentService.createComment(postId, text));
+      }
+  }
+`;
+
+const INTERFACE_SOURCE = `
+  package com.example;
+
+  public interface CommentService {
+      Comment createComment(Long postId, String text);
+  }
+`;
+
+const INTERFACE_IMPL_SOURCE = `
+  package com.example;
+
+  @Service
+  public class CommentServiceImplementation implements CommentService {
+      public Comment createComment(Long postId, String text) {
+          Post post = postRepository.findById(postId);
+          Comment comment = new Comment();
+          comment.setText(text);
+          return commentRepository.save(comment);
+      }
+  }
+`;
+
+describe('inferBusinessFlow — interface field resolves to its real implementation (docs/sprints/SPRINT-13.md)', () => {
+  it('inlines through a field typed as a service interface into its one real implementing class', () => {
+    // Real pattern: InstagramClone's CommentController — a
+    // `private CommentService commentService;` field where `CommentService`
+    // is an interface and the real logic lives in
+    // `CommentServiceImplementation`. Previously this dead-ended at 4
+    // steps (the interface's own bodyless method couldn't be followed at
+    // all); this test locks in that it now inlines all the way through.
+    const FILES = [
+      projectFile('CommentController.java', INTERFACE_CONTROLLER_SOURCE),
+      projectFile('CommentService.java', INTERFACE_SOURCE),
+      projectFile('CommentServiceImplementation.java', INTERFACE_IMPL_SOURCE),
+    ];
+    const result = inferBusinessFlow(
+      api({
+        methodName: 'createComment',
+        httpMethod: 'POST',
+        path: '/comment/create',
+        className: 'CommentController',
+        file: 'CommentController.java',
+      }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps } = result.value;
+
+    // The interface's own compound suffix ("...ServiceImplementation")
+    // strips all the way down to the plain domain noun, not just partway.
+    const findPostStep = steps.find((step) => step.technicalName.includes('postRepository.findById'));
+    const saveStep = steps.find((step) => step.businessName === 'Save Comment');
+    expect(findPostStep).toBeDefined();
+    expect(saveStep).toBeDefined();
+    expect(steps.length).toBeGreaterThan(4);
+  });
+
+  it('with two implementations, prefers the one whose name starts with the interface name', () => {
+    const OTHER_IMPL_SOURCE = `
+      package com.example;
+
+      @Service
+      public class FakeCommentService implements CommentService {
+          public Comment createComment(Long postId, String text) {
+              throw new UnsupportedOperationException();
+          }
+      }
+    `;
+    const FILES = [
+      projectFile('CommentController.java', INTERFACE_CONTROLLER_SOURCE),
+      projectFile('CommentService.java', INTERFACE_SOURCE),
+      projectFile('FakeCommentService.java', OTHER_IMPL_SOURCE),
+      projectFile('CommentServiceImplementation.java', INTERFACE_IMPL_SOURCE),
+    ];
+    const result = inferBusinessFlow(
+      api({
+        methodName: 'createComment',
+        httpMethod: 'POST',
+        path: '/comment/create',
+        className: 'CommentController',
+        file: 'CommentController.java',
+      }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const saveStep = result.value.steps.find((step) => step.businessName === 'Save Comment');
+    expect(saveStep).toBeDefined();
+    const unsupportedStep = result.value.steps.find((step) =>
+      step.technicalName.includes('UnsupportedOperationException'),
+    );
+    expect(unsupportedStep).toBeUndefined();
+  });
+
+  it('an interface with zero implementations in the project falls back to a plain step, not a silent gap', () => {
+    const FILES = [
+      projectFile('CommentController.java', INTERFACE_CONTROLLER_SOURCE),
+      projectFile('CommentService.java', INTERFACE_SOURCE),
+    ];
+    const result = inferBusinessFlow(
+      api({
+        methodName: 'createComment',
+        httpMethod: 'POST',
+        path: '/comment/create',
+        className: 'CommentController',
+        file: 'CommentController.java',
+      }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const createStep = result.value.steps.find((step) =>
+      step.technicalName.includes('commentService.createComment'),
+    );
+    expect(createStep).toBeDefined();
+  });
+});
+
+const LOGGING_NOISE_SOURCE = `
+  package com.example;
+
+  @Service
+  public class OrderService {
+      private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+
+      public Order placeOrder(Order order) {
+          log.info("Placing order");
+          logger.debug("debug detail");
+          LOGGER.warn("a warning");
+          System.out.println("placing order: " + order);
+          orderRepository.save(order);
+          log.error("never reached", order);
+          return order;
+      }
+  }
+`;
+
+describe('inferBusinessFlow — diagnostic logging is left out of the business flow (docs/sprints/SPRINT-13.md)', () => {
+  it('skips log.*/logger.*/LOGGER.* calls and System.out/err prints entirely, keeping the real business call', () => {
+    // Direct request: "You can leave out the logs, imports and focus on
+    // the business logics, api requests etc." Every one of these targets
+    // (a declared `Logger` field named `log`, and the conventional bare
+    // names `logger`/`LOGGER` a field wouldn't even need to be declared
+    // for, e.g. Lombok's @Slf4j) must produce zero steps.
+    const FILES = [projectFile('OrderService.java', LOGGING_NOISE_SOURCE)];
+    const result = inferBusinessFlow(
+      api({
+        methodName: 'placeOrder',
+        httpMethod: 'POST',
+        path: '/orders',
+        className: 'OrderService',
+        file: 'OrderService.java',
+      }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps } = result.value;
+
+    expect(steps.some((step) => step.technicalName.includes('log.'))).toBe(false);
+    expect(steps.some((step) => step.technicalName.includes('logger.'))).toBe(false);
+    expect(steps.some((step) => step.technicalName.includes('LOGGER.'))).toBe(false);
+    expect(steps.some((step) => step.technicalName.includes('System.out'))).toBe(false);
+    expect(steps.some((step) => step.businessName === 'Save Order')).toBe(true);
+  });
+});
+
+const LOOP_SOURCE = `
+  package com.example;
+
+  @Service
+  public class NotificationService {
+      public void notifyAll(List<Subscriber> subscribers) {
+          for (Subscriber subscriber : subscribers) {
+              emailClient.send(subscriber.getEmail());
+          }
+          activityLog.append("notified all subscribers");
+      }
+  }
+`;
+
+describe('inferBusinessFlow — a loop is walked once and trailing code resumes after it (docs/sprints/SPRINT-13.md)', () => {
+  it('gives the loop its own step, connects the body via a loop-type edge, and resumes normal flow after it', () => {
+    const FILES = [projectFile('NotificationService.java', LOOP_SOURCE)];
+    const result = inferBusinessFlow(
+      api({
+        methodName: 'notifyAll',
+        httpMethod: 'POST',
+        path: '/notify',
+        className: 'NotificationService',
+        file: 'NotificationService.java',
+      }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const loopStep = steps.find((step) => step.businessName === 'For Each Subscriber');
+    const sendStep = steps.find((step) => step.technicalName.includes('emailClient.send'));
+    const recordStep = steps.find((step) => step.technicalName.includes('activityLog.append'));
+    expect(loopStep).toBeDefined();
+    expect(sendStep).toBeDefined();
+    expect(recordStep).toBeDefined();
+    if (!loopStep || !sendStep || !recordStep) return;
+
+    const intoSend = edges.find((edge) => edge.to === sendStep.id);
+    expect(intoSend?.from).toBe(loopStep.id);
+    expect(intoSend?.type).toBe('loop');
+
+    // Trailing code after the loop resumes from the body's own tail, not
+    // from the loop-entry step — a plain sequential connection, no
+    // merge-point logic needed since a loop's single pass never diverges.
+    const intoRecord = edges.find((edge) => edge.to === recordStep.id);
+    expect(intoRecord?.from).toBe(sendStep.id);
+    expect(intoRecord?.type).toBe('sequence');
+  });
+});
+
+const SWITCH_SOURCE = `
+  package com.example;
+
+  @Service
+  public class OrderStatusService {
+      public void handleStatusChange(Order order) {
+          switch (order.getStatus()) {
+              case SHIPPED:
+                  shippingNotifier.notifyCustomer(order);
+                  break;
+              case CANCELLED:
+                  refundService.issueRefund(order);
+                  break;
+              default:
+                  auditLog.append(order);
+          }
+      }
+  }
+`;
+
+describe('inferBusinessFlow — a real switch, N branches off one entry step (docs/sprints/SPRINT-13.md)', () => {
+  it('gives each case (including default) its own step hanging off the switch entry, labeled by case value', () => {
+    const FILES = [projectFile('OrderStatusService.java', SWITCH_SOURCE)];
+    const result = inferBusinessFlow(
+      api({
+        methodName: 'handleStatusChange',
+        httpMethod: 'POST',
+        path: '/orders/status',
+        className: 'OrderStatusService',
+        file: 'OrderStatusService.java',
+      }),
+      FILES,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { steps, edges } = result.value;
+
+    const switchStep = steps.find((step) => step.technicalName === 'order.getStatus()');
+    const shippedCase = steps.find((step) => step.businessName === 'Case: SHIPPED');
+    const cancelledCase = steps.find((step) => step.businessName === 'Case: CANCELLED');
+    const defaultCase = steps.find((step) => step.businessName === 'Otherwise');
+    expect(switchStep).toBeDefined();
+    expect(shippedCase).toBeDefined();
+    expect(cancelledCase).toBeDefined();
+    expect(defaultCase).toBeDefined();
+    if (!switchStep || !shippedCase || !cancelledCase || !defaultCase) return;
+
+    // All three cases hang directly off the switch entry, not chained
+    // after each other — a real N-way branch, same as try/catch's N
+    // catch clauses.
+    for (const caseStep of [shippedCase, cancelledCase, defaultCase]) {
+      const intoCase = edges.filter((edge) => edge.to === caseStep.id);
+      expect(intoCase).toHaveLength(1);
+      expect(intoCase[0]?.from).toBe(switchStep.id);
+      expect(intoCase[0]?.type).toBe('conditional');
+    }
+    expect(edges.find((edge) => edge.to === shippedCase.id)?.label).toBe('SHIPPED');
+    expect(edges.find((edge) => edge.to === defaultCase.id)?.label).toBe('Otherwise');
+  });
+});

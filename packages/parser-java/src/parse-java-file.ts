@@ -4,6 +4,8 @@ import {
   parse,
   type ClassDeclarationCtx,
   type FieldDeclarationCtx,
+  type InterfaceDeclarationCtx,
+  type InterfaceMethodDeclarationCtx,
   type MethodDeclarationCtx,
   type PackageDeclarationCtx,
 } from 'java-parser';
@@ -42,6 +44,32 @@ function parameterCountOf(declarator: unknown): number {
   return fixed + varargs;
 }
 
+/** Simple name only (no import resolution, ADR-006) of a `classType`/`interfaceType` node's own identifier — the first one, ignoring any generic type arguments. */
+function simpleTypeName(node: unknown): string | undefined {
+  return findFirstToken(node)?.image;
+}
+
+/**
+ * Simple names out of a `classImplements`/`interfaceExtends` clause's
+ * `interfaceTypeList` — both share the exact same shape, so one helper
+ * covers a class's `implements` list and an interface's (possibly
+ * multiple) `extends` list alike (docs/sprints/SPRINT-13.md).
+ */
+function interfaceListNames(clause: unknown): string[] {
+  const list = childNode(clause, 'interfaceTypeList');
+  if (!list) {
+    return [];
+  }
+  const names: string[] = [];
+  for (const interfaceType of childNodes(list, 'interfaceType')) {
+    const name = simpleTypeName(interfaceType);
+    if (name) {
+      names.push(name);
+    }
+  }
+  return names;
+}
+
 function collectRecordDeclarationNames(source: string): ReadonlySet<string> {
   const names = new Set<string>();
   for (const match of source.matchAll(NESTED_RECORD_DECLARATION_PATTERN)) {
@@ -59,6 +87,8 @@ interface TypeFrame {
   readonly methods: JavaMethod[];
   readonly fields: JavaField[];
   line: number;
+  extendsType: string | undefined;
+  readonly implementsTypes: string[];
 }
 
 /**
@@ -104,8 +134,14 @@ class JavaSemanticModelVisitor extends BaseJavaCstVisitorWithDefaults {
     const nameToken = identifierTokens[0];
     const name = nameToken ? nameToken.image : '';
     const line = nameToken ? nameToken.startLine : 0;
+    const extendsType = normal.children.classExtends?.[0]
+      ? simpleTypeName(childNode(normal.children.classExtends[0], 'classType'))
+      : undefined;
+    const implementsTypes = normal.children.classImplements?.[0]
+      ? interfaceListNames(normal.children.classImplements[0])
+      : [];
 
-    this.typeStack.push({ name, annotations, methods: [], fields: [], line });
+    this.typeStack.push({ name, annotations, methods: [], fields: [], line, extendsType, implementsTypes });
 
     const classBody = normal.children.classBody[0];
     if (classBody) {
@@ -121,6 +157,65 @@ class JavaSemanticModelVisitor extends BaseJavaCstVisitorWithDefaults {
         methods: finished.methods,
         fields: finished.fields,
         line: finished.line,
+        ...(finished.extendsType !== undefined ? { extendsType: finished.extendsType } : {}),
+        implementsTypes: finished.implementsTypes,
+      });
+    }
+  }
+
+  /**
+   * Mirrors `classDeclaration` for an `interface` — previously skipped
+   * entirely (like an enum/record), which meant a field typed as a service
+   * interface (the standard Spring interface+impl pattern) could never be
+   * indexed at all, let alone redirected to its real implementation
+   * (docs/sprints/SPRINT-13.md). An interface's own `extends` list (it can
+   * extend more than one other interface) is captured into the same
+   * `implementsTypes` slot a class's `implements` list uses — both answer
+   * the same question, "what supertype(s) does this type declare".
+   */
+  override interfaceDeclaration(ctx: InterfaceDeclarationCtx): void {
+    const normal = ctx.normalInterfaceDeclaration?.[0];
+    if (!normal) {
+      // An `@interface` (annotation type declaration) — not modeled, same
+      // as an enum/record; not visited either, for the same reason
+      // classDeclaration doesn't visit into a non-class type.
+      return;
+    }
+
+    const annotations = extractAnnotationsFromModifiers(ctx.interfaceModifier);
+    const identifierTokens = normal.children.typeIdentifier[0]?.children.Identifier ?? [];
+    const nameToken = identifierTokens[0];
+    const name = nameToken ? nameToken.image : '';
+    const line = nameToken ? nameToken.startLine : 0;
+    const implementsTypes = normal.children.interfaceExtends?.[0]
+      ? interfaceListNames(normal.children.interfaceExtends[0])
+      : [];
+
+    this.typeStack.push({
+      name,
+      annotations,
+      methods: [],
+      fields: [],
+      line,
+      extendsType: undefined,
+      implementsTypes,
+    });
+
+    const interfaceBody = normal.children.interfaceBody[0];
+    if (interfaceBody) {
+      this.visit(interfaceBody);
+    }
+
+    const finished = this.typeStack.pop();
+    if (finished) {
+      this.types.push({
+        name: finished.name,
+        kind: 'interface',
+        annotations: finished.annotations,
+        methods: finished.methods,
+        fields: finished.fields,
+        line: finished.line,
+        implementsTypes: finished.implementsTypes,
       });
     }
   }
@@ -186,6 +281,37 @@ class JavaSemanticModelVisitor extends BaseJavaCstVisitorWithDefaults {
     // extracted directly by extract-body-events.ts, a separate, bounded
     // walk (see docs/sprints/SPRINT-5.md), not through the class-level
     // visitor (which only cares about type/method declarations).
+  }
+
+  /**
+   * An interface's own method declaration — grammatically distinct from
+   * `methodDeclaration` (a separate CST rule) but structurally identical
+   * (`methodHeader` + `methodBody`), so the logic mirrors it exactly. An
+   * abstract method's `methodBody` is just a `;` (no `block` child), so
+   * `extractBodyEvents` naturally returns `[]` for it, same as any other
+   * bodyless method; a `default`/`static` interface method's real body is
+   * extracted like any other (docs/sprints/SPRINT-13.md).
+   */
+  override interfaceMethodDeclaration(ctx: InterfaceMethodDeclarationCtx): void {
+    const current = this.typeStack[this.typeStack.length - 1];
+    if (!current) {
+      return;
+    }
+
+    const declarator = ctx.methodHeader[0]?.children.methodDeclarator[0];
+    const nameToken = declarator?.children.Identifier[0];
+    const name = nameToken ? nameToken.image : '';
+
+    if (this.nestedRecordNames.has(name)) {
+      return;
+    }
+
+    const annotations = extractAnnotationsFromModifiers(ctx.interfaceMethodModifier);
+    const line = nameToken ? nameToken.startLine : 0;
+    const parameterCount = declarator ? parameterCountOf(declarator) : 0;
+    const bodyEvents = ctx.methodBody[0] ? extractBodyEvents(ctx.methodBody[0]) : [];
+
+    current.methods.push({ name, annotations, line, parameterCount, bodyEvents });
   }
 }
 

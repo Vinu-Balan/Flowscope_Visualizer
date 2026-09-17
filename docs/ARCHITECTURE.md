@@ -97,15 +97,19 @@ cross-boundary calls are explicit, named, typed operations defined in
 `packages/parser-java`, `packages/parser-spring`, `packages/graph-schema`,
 `packages/graph-engine`, `packages/business-analyzer`,
 `packages/visualization`, and `packages/ui` are implemented (SPRINT-1
-through SPRINT-12 — see `docs/sprints/`). `apps/desktop` also now packages
+through SPRINT-13 — see `docs/sprints/`). `apps/desktop` also now packages
 into a portable Windows build via `electron-builder` (SPRINT-10.md), and
 `packages/parser-spring` recognizes JAX-RS/Jersey endpoints alongside
 Spring MVC ones (SPRINT-11.md). `packages/business-analyzer` and
 `packages/parser-java` also inline same-project call chains up to 8 hops
 deep (not 1) and model `try`/`catch` as a real branch, closing two
-real data-loss bugs found in the process (SPRINT-12.md). `apps/parser-engine`
-and the remaining `packages/*` (`shared`, `parser-core`) are still
-scaffolding only, pending SPRINT-13 onward.
+real data-loss bugs found in the process (SPRINT-12.md), resolve a field
+typed as a service interface to its real implementation (`parser-java`
+now parses `interface` declarations, previously skipped like an
+enum/record), leave diagnostic logging out of the flow entirely, and
+model a loop/classic `switch` as real steps (SPRINT-13.md).
+`apps/parser-engine` and the remaining `packages/*` (`shared`,
+`parser-core`) are still scaffolding only, pending SPRINT-14 onward.
 
 Several structural refinements worth noting, all the same pattern for the
 same reason — keep `node:fs` out of anything the sandboxed preload script

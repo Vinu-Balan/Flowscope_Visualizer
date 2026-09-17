@@ -2,9 +2,10 @@
 
 The Java parsing adapter: turns Java source text into a small,
 framework-agnostic Java Semantic Model — package name; top-level `class`
-declarations; their annotations, fields, and methods; and, per method, a
-flat, source-ordered sequence of body events (calls, object construction,
-`if` guards, `throw`s, `return`s — docs/sprints/SPRINT-5.md) — using
+*and `interface`* declarations (SPRINT-13.md); their annotations, fields,
+and methods; and, per method, a flat, source-ordered sequence of body
+events (calls, object construction, `if` guards, `throw`s, `return`s —
+docs/sprints/SPRINT-5.md) — using
 `java-parser`, a pure JavaScript/TypeScript, Chevrotain-based Java
 grammar, the same parser that powers `prettier-java`. See
 `docs/adr/ADR-006-java-parsing-without-a-jvm.md` for why this replaced the
@@ -26,15 +27,33 @@ ever imported by the sandboxed preload script.
 
 Body-event extraction is deliberately generic rather than a hand-modeled
 control-flow grammar (`src/extract-body-events.ts`, `src/cst-utils.ts`) —
-a method's direct block, one level into an `if`'s then/else branches, and
-(since SPRINT-12) a `try`/`catch`'s try-block and each catch clause are
-walked; loops, switch, and lambdas still aren't modeled — scoped by
-surveying real usage across the user's own Spring Boot projects rather
-than guessing (`docs/sprints/SPRINT-9.md`: `switch` never appears in
-either; `if`/`else` is the dominant conditional construct by a wide
-margin. `docs/sprints/SPRINT-12.md`: `try`/`catch` is used systemically
-as real business branching, not just error handling, in the user's
-richest real project). See "Planned scope" in `docs/sprints/SPRINT-5.md`.
+a method's direct block, one level into an `if`'s then/else branches, a
+`try`/`catch`'s try-block and each catch clause (SPRINT-12.md), a loop's
+body (an enhanced `for`, basic `for`, `while`, or `do`-`while` — walked
+exactly once), and a classic `switch`'s case labels (SPRINT-13.md) are
+all walked; a `finally` clause, an arrow-style `switch` *expression*, and
+lambda/stream bodies still aren't modeled — scoped by surveying real
+usage across the user's own Spring Boot projects rather than guessing
+(`docs/sprints/SPRINT-9.md`: `if`/`else` is the dominant conditional
+construct by a wide margin. `docs/sprints/SPRINT-12.md`: `try`/`catch` is
+used systemically as real business branching, not just error handling, in
+the user's richest real project. `docs/sprints/SPRINT-13.md`: a classic
+`case X:`/`break;` `switch` *statement* has zero real occurrences across
+all four projects — only the structurally different arrow-style
+*expression* form appears, and only twice, both a low-value MIME-type
+lookup — while enhanced `for`-each loops are both common and directly
+relevant to real business logic, e.g. a per-seat already-booked check).
+See "Planned scope" in `docs/sprints/SPRINT-5.md`.
+
+A `'loop'` body event carries `loopEventCount` (the body's own event
+count, same boundary-marking role as `thenEventCount`/`tryEventCount`)
+and, for an enhanced `for` only, `loopVariableType` (the per-item
+variable's declared simple type, e.g. "Comment" — lets a consumer phrase
+"For Each Comment" instead of a generic "Repeat"). A `'switch'` body
+event carries `caseCount`; each `'case'` event (one per label, `default`
+included) carries `caseLabel` and its own `caseEventCount` — the same
+flat, per-branch layout `'try'` uses for catch clauses, generalized from
+N exception types to N case labels (`docs/sprints/SPRINT-13.md`).
 
 A `'try'` body event carries `tryEventCount` (how many following events
 belong to the try-block itself) and `catchCount` (how many `'catch'`
@@ -64,6 +83,17 @@ declaration's initializer) and unwraps to its right-hand value rather
 than its target variable — previously a reassignment's call was silently
 dropped entirely, found via a real `catch` clause that reassigns an
 already-declared variable to an alternate lookup (`docs/sprints/SPRINT-12.md`).
+
+A `JavaType` also carries `implementsTypes` — a class's `implements` list,
+or an interface's own (possibly multiple) `extends` list, simple names
+only — and, for a class, `extendsType` (its single superclass). This is
+what lets `packages/business-analyzer` redirect a field typed as a
+service interface to its real implementing class instead of dead-ending
+at the interface's own bodyless method — previously `interface`
+declarations weren't visited at all (like an enum or record), so this
+didn't even have the data to work with (`docs/sprints/SPRINT-13.md`, the
+top-priority gap `docs/sprints/SPRINT-12.md` had already flagged after
+finding it in the user's real InstagramClone project).
 
 A `JavaMethod` also carries its declaration `line` and `parameterCount`
 (arity) — the only two signals available, with no type checker, for
@@ -102,5 +132,5 @@ show which variable is actually in play at a step (SPRINT-8.md).
 
 **Status:** implemented — see `docs/sprints/SPRINT-4.md` / Weekend 4,
 `docs/sprints/SPRINT-5.md` / Weekend 5, `docs/sprints/SPRINT-7.md`,
-`docs/sprints/SPRINT-8.md`, `docs/sprints/SPRINT-9.md`, and
-`docs/sprints/SPRINT-12.md`.
+`docs/sprints/SPRINT-8.md`, `docs/sprints/SPRINT-9.md`,
+`docs/sprints/SPRINT-12.md`, and `docs/sprints/SPRINT-13.md`.

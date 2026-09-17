@@ -1,12 +1,15 @@
 /**
  * Extracts a flat, source-ordered list of `JavaBodyEvent`s from a method's
  * body CST — the calls it makes, the objects it constructs, the `if`
- * guards/`throw`s/`return`s/`try`/`catch`es it contains — for
- * `packages/business-analyzer` to infer a business flow from. Deliberately
- * not a full control-flow model: an `if`'s then/else branches and a
- * `try`'s try-block/catch-clauses are each walked one level (loops,
- * switch, and lambda bodies are not modeled at all — see
- * docs/sprints/SPRINT-12.md's "Explicitly deferred"). See "Planned scope"
+ * guards/`throw`s/`return`s/`try`/`catch`es/loops/`switch`es it contains —
+ * for `packages/business-analyzer` to infer a business flow from.
+ * Deliberately not a full control-flow model: an `if`'s then/else
+ * branches, a `try`'s try-block/catch-clauses, a loop's body (walked
+ * exactly once — see docs/sprints/SPRINT-13.md), and a `switch`'s case
+ * labels are each walked one level; a `finally` clause, a classic-vs-arrow
+ * `switch` *expression* (as opposed to the classic `case X:` *statement*
+ * form modeled here), and lambda/stream bodies are not modeled — see
+ * docs/sprints/SPRINT-13.md's "Explicitly deferred". See "Planned scope"
  * in docs/sprints/SPRINT-5.md and docs/sprints/SPRINT-7.md.
  *
  * Also deliberately generic rather than exhaustive, in the same spirit as
@@ -521,6 +524,176 @@ function processTry(tryStatement: unknown, events: JavaBodyEvent[], depth: numbe
   }
 }
 
+/**
+ * Walks a loop's body exactly once — "this happens for each iteration",
+ * the same honest framing a static flow diagram has to use for any
+ * looping construct — and records it as a single `'loop'` event bounding
+ * those events, the same count-bounded layout `processTry`'s try-block
+ * uses. `headerText` is whatever's shown as `conditionText`; `bodyStatement`
+ * is the loop's own `statement` child, walked through the ordinary
+ * `processStatement` (it may itself be a `{ }` block or a bare single
+ * statement — same shape an `if`'s then-branch can take)
+ * (docs/sprints/SPRINT-13.md).
+ */
+function processLoop(
+  bodyStatement: unknown,
+  headerText: string,
+  loopVariableType: string | undefined,
+  line: number,
+  events: JavaBodyEvent[],
+  depth: number,
+): void {
+  const bodyEvents: JavaBodyEvent[] = [];
+  processStatement(bodyStatement, bodyEvents, depth + 1);
+
+  events.push({
+    kind: 'loop',
+    line,
+    conditionText: headerText,
+    loopEventCount: bodyEvents.length,
+    ...(loopVariableType !== undefined ? { loopVariableType } : {}),
+  });
+  events.push(...bodyEvents);
+}
+
+function processForStatement(forStatement: unknown, events: JavaBodyEvent[], depth: number): void {
+  const line = findFirstToken(forStatement)?.startLine ?? 0;
+
+  const enhanced = childNode(forStatement, 'enhancedForStatement');
+  if (enhanced) {
+    const localVarDecl = childNode(enhanced, 'localVariableDeclaration');
+    const collectionExpr = childNode(enhanced, 'expression');
+    const bodyStatement = childNode(enhanced, 'statement');
+    if (!bodyStatement) {
+      return;
+    }
+    const localVariableType = localVarDecl
+      ? childNode(localVarDecl, 'localVariableType')
+      : undefined;
+    const loopVariableType = localVariableType
+      ? findFirstTokenImage(localVariableType, 'Identifier')
+      : undefined;
+    const headerText = `${localVarDecl ? renderTokensInOrder(localVarDecl) : ''} : ${
+      collectionExpr ? renderTokensInOrder(collectionExpr) : ''
+    }`;
+    processLoop(bodyStatement, headerText, loopVariableType, line, events, depth);
+    return;
+  }
+
+  const basic = childNode(forStatement, 'basicForStatement');
+  if (!basic) {
+    return;
+  }
+  const bodyStatement = childNode(basic, 'statement');
+  if (!bodyStatement) {
+    return;
+  }
+  const forInit = childNode(basic, 'forInit');
+  const condition = childNode(basic, 'expression');
+  const forUpdate = childNode(basic, 'forUpdate');
+  const headerText = `${forInit ? renderTokensInOrder(forInit) : ''}; ${
+    condition ? renderTokensInOrder(condition) : ''
+  }; ${forUpdate ? renderTokensInOrder(forUpdate) : ''}`;
+  processLoop(bodyStatement, headerText, undefined, line, events, depth);
+}
+
+function processWhileStatement(whileStatement: unknown, events: JavaBodyEvent[], depth: number): void {
+  const line = findFirstToken(whileStatement)?.startLine ?? 0;
+  const condition = childNode(whileStatement, 'expression');
+  const bodyStatement = childNode(whileStatement, 'statement');
+  if (!bodyStatement) {
+    return;
+  }
+  processLoop(
+    bodyStatement,
+    condition ? renderTokensInOrder(condition) : '',
+    undefined,
+    line,
+    events,
+    depth,
+  );
+}
+
+function processDoStatement(doStatement: unknown, events: JavaBodyEvent[], depth: number): void {
+  const line = findFirstToken(doStatement)?.startLine ?? 0;
+  const condition = childNode(doStatement, 'expression');
+  const bodyStatement = childNode(doStatement, 'statement');
+  if (!bodyStatement) {
+    return;
+  }
+  processLoop(
+    bodyStatement,
+    condition ? renderTokensInOrder(condition) : '',
+    undefined,
+    line,
+    events,
+    depth,
+  );
+}
+
+/**
+ * A `switch`'s selector expression plus one `'case'` event per label
+ * (including `default:`), each bounding its own body's events up to
+ * (not including) a `break`/the next label — the same per-branch layout
+ * `processTry` uses for catch clauses, generalized to N labels instead of
+ * N catch types. A `break`/`continue`/fallthrough isn't modeled as its
+ * own event (there's no `JavaBodyEventKind` for it); a case that falls
+ * through into the next without a `break` simply has whatever the next
+ * label's own body contains appended after it in the flat list, same as
+ * any other unrecognized statement being silently skipped
+ * (docs/sprints/SPRINT-13.md). Only the classic `case X:`/`default:`
+ * label form is modeled — a Java 14+ arrow-style `case X -> ...`/switch
+ * expression is a different CST shape, not modeled (no real evidence for
+ * it yet, same evidence-driven scoping as everywhere else here).
+ */
+function processSwitch(switchStatement: unknown, events: JavaBodyEvent[], depth: number): void {
+  const line = findFirstToken(switchStatement)?.startLine ?? 0;
+  const selector = childNode(switchStatement, 'expression');
+  const switchBlock = childNode(switchStatement, 'switchBlock');
+  const groups = switchBlock ? childNodes(switchBlock, 'switchBlockStatementGroup') : [];
+
+  interface CaseGroup {
+    readonly line: number;
+    readonly label: string;
+    readonly events: JavaBodyEvent[];
+  }
+  const caseGroups: CaseGroup[] = [];
+  for (const group of groups) {
+    const switchLabel = childNode(group, 'switchLabel');
+    const isDefault = switchLabel ? hasChild(switchLabel, 'Default') : false;
+    const caseConstant = switchLabel ? childNode(switchLabel, 'caseConstant') : undefined;
+    const label = isDefault ? 'default' : caseConstant ? renderTokensInOrder(caseConstant) : '';
+    const groupEvents: JavaBodyEvent[] = [];
+    const blockStatements = childNode(group, 'blockStatements');
+    if (blockStatements) {
+      for (const blockStatement of childNodes(blockStatements, 'blockStatement')) {
+        processBlockStatement(blockStatement, groupEvents, depth + 1);
+      }
+    }
+    caseGroups.push({
+      line: findFirstToken(group)?.startLine ?? line,
+      label,
+      events: groupEvents,
+    });
+  }
+
+  events.push({
+    kind: 'switch',
+    line,
+    conditionText: selector ? renderTokensInOrder(selector) : '',
+    caseCount: caseGroups.length,
+  });
+  for (const group of caseGroups) {
+    events.push({
+      kind: 'case',
+      line: group.line,
+      caseLabel: group.label,
+      caseEventCount: group.events.length,
+    });
+    events.push(...group.events);
+  }
+}
+
 type FirstStatementKind = 'throw' | 'return' | 'other';
 
 /** Looks past a `{ }` block wrapper to classify a then-branch's very first statement, for guard-clause detection. */
@@ -633,9 +806,21 @@ function processStatement(statementNode: unknown, events: JavaBodyEvent[], depth
     return;
   }
 
+  const forStatement = childNode(statementNode, 'forStatement');
+  if (forStatement) {
+    processForStatement(forStatement, events, depth);
+    return;
+  }
+
+  const whileStatement = childNode(statementNode, 'whileStatement');
+  if (whileStatement) {
+    processWhileStatement(whileStatement, events, depth);
+    return;
+  }
+
   const swts = childNode(statementNode, 'statementWithoutTrailingSubstatement');
   if (!swts) {
-    // A loop/switch/labeled/synchronized statement — not modeled (bounded scope).
+    // A labeled/synchronized statement — not modeled (bounded scope).
     return;
   }
 
@@ -648,6 +833,18 @@ function processStatement(statementNode: unknown, events: JavaBodyEvent[], depth
   const tryStatement = childNode(swts, 'tryStatement');
   if (tryStatement) {
     processTry(tryStatement, events, depth);
+    return;
+  }
+
+  const doStatement = childNode(swts, 'doStatement');
+  if (doStatement) {
+    processDoStatement(doStatement, events, depth);
+    return;
+  }
+
+  const switchStatement = childNode(swts, 'switchStatement');
+  if (switchStatement) {
+    processSwitch(switchStatement, events, depth);
     return;
   }
 

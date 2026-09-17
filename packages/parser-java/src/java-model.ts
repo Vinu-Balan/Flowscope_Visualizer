@@ -34,7 +34,17 @@ export interface JavaAnnotation {
  * `packages/business-analyzer`'s inference. See
  * `docs/sprints/SPRINT-5.md` for exactly what is and isn't extracted.
  */
-export type JavaBodyEventKind = 'call' | 'construct' | 'if' | 'throw' | 'return' | 'try' | 'catch';
+export type JavaBodyEventKind =
+  | 'call'
+  | 'construct'
+  | 'if'
+  | 'throw'
+  | 'return'
+  | 'try'
+  | 'catch'
+  | 'loop'
+  | 'switch'
+  | 'case';
 
 export interface JavaBodyEvent {
   readonly kind: JavaBodyEventKind;
@@ -70,7 +80,15 @@ export interface JavaBodyEvent {
    */
   readonly argumentsText?: string | undefined;
 
-  /** 'if': a best-effort human-readable rendering of the condition. */
+  /**
+   * 'if': a best-effort human-readable rendering of the condition.
+   * 'loop': the same rendering role for the loop's header — the enhanced
+   * `for`'s `Item item : items`, a basic `for`'s `i = 0; i < 10; i++`, or
+   * a `while`/`do-while`'s condition expression — reused rather than a
+   * parallel field, same as `exceptionType` between 'throw'/'catch'
+   * (docs/sprints/SPRINT-13.md). 'switch': the switched-on expression's
+   * rendering (e.g. `status`).
+   */
   readonly conditionText?: string | undefined;
   /** 'if': true when the then-branch's first statement is a `throw`. */
   readonly guardThrows?: boolean | undefined;
@@ -135,6 +153,38 @@ export interface JavaBodyEvent {
   readonly catchCount?: number | undefined;
   /** 'catch': how many of the following events belong to this catch clause's own body. */
   readonly catchEventCount?: number | undefined;
+
+  /**
+   * 'loop': how many of the events immediately following this one belong
+   * to the loop's own body — same boundary-marking role as
+   * `thenEventCount`/`tryEventCount`. The body is walked exactly *once*
+   * (a static flow diagram can't represent "N times" any more honestly
+   * than that), framed as "this happens for each iteration" rather than
+   * literally unrolled — covers a `for`, enhanced `for`, `while`, and
+   * `do`/`while` alike (docs/sprints/SPRINT-13.md).
+   */
+  readonly loopEventCount?: number | undefined;
+  /**
+   * 'loop': an enhanced `for`'s per-item variable's declared simple type
+   * (e.g. "Comment" from `for (Comment comment : comments)`) — lets a
+   * consumer phrase the loop as "For Each Comment" rather than a generic
+   * "Repeat", which a basic `for`/`while`/`do-while` falls back to
+   * (`undefined` for those).
+   */
+  readonly loopVariableType?: string | undefined;
+
+  /**
+   * 'switch': how many `'case'` events (each with its own event-count
+   * boundary) immediately follow — the same per-branch layout `'try'` uses
+   * for its catch clauses, generalized to an arbitrary number of case
+   * labels (docs/sprints/SPRINT-13.md). A `default:` label is modeled as
+   * an ordinary `'case'` event too (see `caseLabel`).
+   */
+  readonly caseCount?: number | undefined;
+  /** 'case': the case label's source text (e.g. "ACTIVE"), or the literal string "default" for a `default:` label. */
+  readonly caseLabel?: string | undefined;
+  /** 'case': how many of the following events belong to this case's own body, up to (not including) its `break`/next label. */
+  readonly caseEventCount?: number | undefined;
 
   /** 'return': the returned expression's call chain, if any (e.g. targetName "ResponseEntity", methodName "ok"). */
   readonly returnsCallTarget?: string | undefined;
@@ -217,6 +267,23 @@ export interface JavaType {
   readonly fields: readonly JavaField[];
   /** The type declaration's source line. */
   readonly line: number;
+  /**
+   * A `class`'s single superclass (`extends`), simple name only — no
+   * import resolution (ADR-006). `undefined` when there's no explicit
+   * `extends` clause. Not populated for `interface`/`enum`/`record`.
+   */
+  readonly extendsType?: string | undefined;
+  /**
+   * The interfaces a `class` declares with `implements`, or the interfaces
+   * an `interface` declares with `extends` (an interface can extend more
+   * than one) — simple names only, source order, empty when there are
+   * none. This is what lets a field typed as a service interface (e.g.
+   * `private CommentService commentService;`, the standard Spring
+   * interface+impl pattern) resolve to its real implementing class instead
+   * of dead-ending at the interface's own bodyless method
+   * (docs/sprints/SPRINT-13.md).
+   */
+  readonly implementsTypes: readonly string[];
 }
 
 export interface JavaSourceFile {

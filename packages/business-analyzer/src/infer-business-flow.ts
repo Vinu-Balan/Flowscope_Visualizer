@@ -5,16 +5,19 @@ import type { DiscoveredApi } from '@flowscope/parser-spring/api';
 import type { BusinessFlow, BusinessFlowEdge, BusinessStep } from './business-flow';
 import {
   describeCall,
+  describeCase,
   describeCatch,
   describeConstruct,
   describeDecision,
+  describeLoop,
   describeReturn,
+  describeSwitch,
   describeThrow,
   describeViewReturn,
   domainNounFromType,
   type CallDescription,
 } from './naming';
-import { buildTypeIndex, type TypeIndexEntry } from './type-index';
+import { buildTypeIndex, pickImplementation, type ProjectTypeIndex } from './type-index';
 
 /**
  * How many hops of same-project method calls get inlined into the flow.
@@ -64,7 +67,7 @@ interface PendingEdge {
  * the decision, not from the (dead-end) guard outcome — see `handleIf`.
  */
 interface FlowContext {
-  readonly typeIndex: ReadonlyMap<string, TypeIndexEntry>;
+  readonly typeIndex: ProjectTypeIndex;
   readonly steps: BusinessStep[];
   readonly edges: BusinessFlowEdge[];
   readonly visited: Set<string>;
@@ -160,7 +163,7 @@ function resolveCall(
   argumentCount: number | undefined,
   ownerType: JavaType,
   ownerFile: string,
-  typeIndex: ReadonlyMap<string, TypeIndexEntry>,
+  typeIndex: ProjectTypeIndex,
 ): CallResolution | undefined {
   let targetType = ownerType;
   let targetFile = ownerFile;
@@ -170,12 +173,31 @@ function resolveCall(
     if (!field) {
       return undefined;
     }
-    const resolved = typeIndex.get(field.type);
+    const resolved = typeIndex.byName.get(field.type);
     if (!resolved) {
       return undefined;
     }
     targetType = resolved.type;
     targetFile = resolved.relativePath;
+  }
+
+  // A field typed as a service interface (`private CommentService
+  // commentService;`) is the standard Spring interface+impl pattern — the
+  // interface's own method has no body to follow at all, so redirect to a
+  // real implementing class in the project when there is one. No match
+  // (an external/framework interface, or one nothing in the project
+  // implements) correctly falls through to the plain, non-inlined step
+  // below rather than resolving into nothing (docs/sprints/SPRINT-13.md).
+  if (targetType.kind === 'interface') {
+    const impl = pickImplementation(
+      targetType.name,
+      typeIndex.implementorsByInterfaceName.get(targetType.name),
+    );
+    if (!impl) {
+      return undefined;
+    }
+    targetType = impl.type;
+    targetFile = impl.relativePath;
   }
 
   const candidates = targetType.methods.filter((candidate) => candidate.name === methodName);
@@ -192,6 +214,52 @@ function resolveCall(
   };
 }
 
+const LOGGER_FIELD_TYPES = new Set(['Logger', 'Log']);
+const LOGGER_VARIABLE_NAMES = new Set(['log', 'logger', 'LOG', 'LOGGER']);
+const LOGGING_METHOD_NAMES = new Set([
+  'trace',
+  'debug',
+  'info',
+  'warn',
+  'error',
+  'fatal',
+  'isTraceEnabled',
+  'isDebugEnabled',
+  'isInfoEnabled',
+  'isWarnEnabled',
+  'isErrorEnabled',
+]);
+const CONSOLE_PRINT_TARGETS = new Set(['System.out', 'System.err']);
+
+/**
+ * True for a call that's purely diagnostic — a logger statement or a
+ * `System.out`/`System.err` print — never real business logic, so it's
+ * skipped entirely rather than rendered as a step, per direct request
+ * ("leave out the logs... focus on the business logic",
+ * docs/sprints/SPRINT-13.md). Two independent signals, either sufficient
+ * on its own: the call target being one of the conventional bare names a
+ * logger variable is given (`log`/`logger`/`LOG`/`LOGGER` — this one
+ * matters most in practice, since Lombok's `@Slf4j` synthesizes the `log`
+ * field at compile time, so it never appears in the parsed source for a
+ * field-type check to catch), or an explicitly declared field typed
+ * `Logger`/`Log` under an unconventional name. Gated on a recognized
+ * logging method name too, so a field that happens to be named `log` for
+ * some other reason doesn't lose an unrelated method call.
+ */
+function isLoggingCall(targetName: string, methodName: string, ownerType: JavaType): boolean {
+  if (CONSOLE_PRINT_TARGETS.has(targetName)) {
+    return true;
+  }
+  if (!targetName || !LOGGING_METHOD_NAMES.has(methodName)) {
+    return false;
+  }
+  if (LOGGER_VARIABLE_NAMES.has(targetName)) {
+    return true;
+  }
+  const field = ownerType.fields.find((candidate) => candidate.name === targetName);
+  return field !== undefined && LOGGER_FIELD_TYPES.has(field.type);
+}
+
 function handleCall(
   event: JavaBodyEvent,
   ownerType: JavaType,
@@ -203,7 +271,7 @@ function handleCall(
 ): void {
   const targetName = event.targetName ?? '';
   const methodName = event.methodName ?? '';
-  if (!methodName) {
+  if (!methodName || isLoggingCall(targetName, methodName, ownerType)) {
     return;
   }
 
@@ -597,6 +665,130 @@ function handleTry(
   return cursor;
 }
 
+/**
+ * A loop's body walked exactly once — "this happens for each iteration",
+ * the same honest framing `JavaBodyEvent.loopEventCount`'s doc comment
+ * describes — connected sequentially from the loop-entry step via a
+ * `'loop'`-type edge (the schema already had this edge type; SPRINT-13.md
+ * is the first thing to use it). Unlike `handleIf`/`handleTry`, there's no
+ * branching here at all: a single pass through the body, so whatever
+ * follows the loop simply resumes from the body's own tail — no
+ * merge-point logic needed (docs/sprints/SPRINT-13.md).
+ */
+function handleLoop(
+  events: readonly JavaBodyEvent[],
+  index: number,
+  ownerType: JavaType,
+  ownerFile: string,
+  method: JavaMethod,
+  depth: number,
+  noun: string,
+  ctx: FlowContext,
+): number {
+  const loopEvent = events[index];
+  if (!loopEvent) {
+    return index + 1;
+  }
+  const next = index + 1;
+
+  const description = describeLoop(loopEvent.loopVariableType, loopEvent.conditionText ?? '');
+  addStep(
+    ctx,
+    description,
+    loopEvent.conditionText || 'loop (...)',
+    sourceOf(ownerFile, loopEvent.line, method.name, ownerType.name),
+  );
+
+  const loopEventCount = loopEvent.loopEventCount ?? 0;
+  const bodyEnd = next + loopEventCount;
+  if (loopEventCount > 0) {
+    ctx.nextEdge = { type: 'loop' };
+    let i = next;
+    while (i < bodyEnd) {
+      i = processEventAt(events, i, ownerType, ownerFile, method, depth, noun, ctx);
+    }
+  }
+
+  return bodyEnd;
+}
+
+/**
+ * A `switch`'s counterpart to `handleTry`: one entry step for the switched
+ * expression, then every `case`/`default` label hangs its own steps
+ * directly off that entry step (an N-way branch, same layout as `try`'s
+ * catch clauses), labeled with the case's own value on a `'conditional'`
+ * edge. The same "whichever branch doesn't end the method is where
+ * trailing code resumes from" merge-point rule applies, generalized from
+ * `try`/`catch`'s N exception types to N case labels
+ * (docs/sprints/SPRINT-13.md). A case that falls through into the next
+ * without a `break` has no special handling — its body is simply empty
+ * (`caseEventCount: 0`), and the next label's own steps hang off the
+ * switch entry exactly the same way, not chained after the empty one.
+ */
+function handleSwitch(
+  events: readonly JavaBodyEvent[],
+  index: number,
+  ownerType: JavaType,
+  ownerFile: string,
+  method: JavaMethod,
+  depth: number,
+  noun: string,
+  ctx: FlowContext,
+): number {
+  const switchEvent = events[index];
+  if (!switchEvent) {
+    return index + 1;
+  }
+  let cursor = index + 1;
+
+  const description = describeSwitch(switchEvent.conditionText ?? '');
+  const switchStepId = addStep(
+    ctx,
+    description,
+    switchEvent.conditionText || 'switch (...)',
+    sourceOf(ownerFile, switchEvent.line, method.name, ownerType.name),
+  );
+
+  const caseCount = switchEvent.caseCount ?? 0;
+  const caseTails: { readonly id: string | undefined; readonly endsMethod: boolean }[] = [];
+  for (let c = 0; c < caseCount; c += 1) {
+    const caseEvent = events[cursor];
+    cursor += 1;
+    if (!caseEvent) {
+      break;
+    }
+    const label = caseEvent.caseLabel ?? '';
+    ctx.lastStepId = switchStepId;
+    ctx.nextEdge = { type: 'conditional', label: label === 'default' || !label ? 'Otherwise' : label };
+    addStep(
+      ctx,
+      describeCase(label),
+      label === 'default' || !label ? 'default:' : `case ${label}:`,
+      sourceOf(ownerFile, caseEvent.line, method.name, ownerType.name),
+    );
+
+    const caseEventCount = caseEvent.caseEventCount ?? 0;
+    const caseEnd = cursor + caseEventCount;
+    if (caseEventCount > 0) {
+      let j = cursor;
+      while (j < caseEnd) {
+        j = processEventAt(events, j, ownerType, ownerFile, method, depth, noun, ctx);
+      }
+    }
+    caseTails.push({
+      id: ctx.lastStepId,
+      endsMethod: caseEventCount > 0 && isTerminalEvent(events[caseEnd - 1]),
+    });
+    cursor = caseEnd;
+  }
+
+  ctx.nextEdge = { type: 'sequence' };
+  const firstNonTerminalCase = caseTails.find((c) => !c.endsMethod);
+  ctx.lastStepId = firstNonTerminalCase ? firstNonTerminalCase.id : switchStepId;
+
+  return cursor;
+}
+
 /** Dispatches one body event by kind, advancing the flow — shared by `unroll`'s top-level loop and `handleIf`'s branch walks so a nested `if` composes naturally through the same recursion. */
 function processEventAt(
   events: readonly JavaBodyEvent[],
@@ -619,12 +811,19 @@ function processEventAt(
   if (event.kind === 'try') {
     return handleTry(events, index, ownerType, ownerFile, method, depth, noun, ctx);
   }
-  if (event.kind === 'catch') {
+  if (event.kind === 'loop') {
+    return handleLoop(events, index, ownerType, ownerFile, method, depth, noun, ctx);
+  }
+  if (event.kind === 'switch') {
+    return handleSwitch(events, index, ownerType, ownerFile, method, depth, noun, ctx);
+  }
+  if (event.kind === 'catch' || event.kind === 'case') {
     // Never reached as a top-level "current" event in well-formed output —
-    // handleTry always consumes every 'catch' event itself via its own
-    // index arithmetic. Advance past it defensively rather than
-    // mis-dispatching to handleReturn below if that invariant is ever
-    // violated (docs/sprints/SPRINT-12.md).
+    // handleTry/handleSwitch always consume every 'catch'/'case' event
+    // themselves via their own index arithmetic. Advance past it
+    // defensively rather than mis-dispatching to handleReturn below if
+    // that invariant is ever violated (docs/sprints/SPRINT-12.md,
+    // extended in docs/sprints/SPRINT-13.md).
     return index + 1;
   }
   if (event.kind === 'call') {

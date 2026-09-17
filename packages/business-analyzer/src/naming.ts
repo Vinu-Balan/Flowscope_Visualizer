@@ -35,10 +35,26 @@ function capitalize(word: string): string {
   return word.length > 0 ? (word[0]?.toUpperCase() ?? '') + word.slice(1) : word;
 }
 
-/** Strips common Spring bean suffixes so "CustomerService" reads as "Customer". */
+const TYPE_SUFFIX_PATTERN = /(Service|Repository|Controller|Impl|Implementation|Manager|Client)$/u;
+
+/**
+ * Strips common Spring bean suffixes so "CustomerService" reads as
+ * "Customer" — repeatedly, so a resolved interface implementation's
+ * *compound* suffix (`CommentServiceImplementation`, from redirecting a
+ * `CommentService` field to its real `CommentServiceImplementation` class,
+ * docs/sprints/SPRINT-13.md) strips all the way down to "Comment" rather
+ * than stopping after just "Implementation" and leaving "CommentService".
+ */
 export function domainNounFromType(typeName: string): string {
-  const stripped = typeName.replace(/(Service|Repository|Controller|Impl|Manager|Client)$/u, '');
-  return stripped.length > 0 ? stripped : typeName;
+  let current = typeName;
+  for (;;) {
+    const next = current.replace(TYPE_SUFFIX_PATTERN, '');
+    if (next === current || next.length === 0) {
+      break;
+    }
+    current = next;
+  }
+  return current.length > 0 ? current : typeName;
 }
 
 function singularize(word: string): string {
@@ -299,6 +315,89 @@ export function describeCatch(exceptionType: string): CallDescription {
     businessName: `Handle ${exceptionType}`,
     businessDescription: `Catches \`${exceptionType}\` and handles it instead of letting it propagate.`,
     confidence: 0.65,
+  };
+}
+
+/**
+ * Boxed/primitive/generic scalar types an enhanced `for`'s per-item
+ * variable can be declared as without naming anything domain-specific
+ * (`for (Long seatId : request.getSeatIds())`, found in the user's real
+ * BookMyShow project) — "For Each Long" reads as noise, not a business
+ * name, so `describeLoop` falls back to "Repeat" for these the same way
+ * it does when there's no loop variable type at all.
+ */
+const SCALAR_LOOP_VARIABLE_TYPES = new Set([
+  'String',
+  'Object',
+  'Long',
+  'Integer',
+  'Short',
+  'Byte',
+  'Double',
+  'Float',
+  'Boolean',
+  'Character',
+  'Number',
+]);
+
+/**
+ * Describes a loop's entry — the closest a static flow diagram can get to
+ * representing "this repeats", since it can't literally draw N
+ * iterations. An enhanced `for`'s per-item variable type (e.g. "Comment")
+ * gives a real, business-readable "For Each Comment"; a basic
+ * `for`/`while`/`do-while`, or an enhanced `for` over a scalar type
+ * (`SCALAR_LOOP_VARIABLE_TYPES`), has no such signal, so it falls back to
+ * a plain "Repeat" (still showing the raw header text in the description,
+ * for anyone debugging who needs the literal condition)
+ * (docs/sprints/SPRINT-13.md).
+ */
+export function describeLoop(loopVariableType: string | undefined, conditionText: string): CallDescription {
+  if (loopVariableType && !SCALAR_LOOP_VARIABLE_TYPES.has(loopVariableType)) {
+    const itemNoun = domainNounFromType(loopVariableType);
+    return {
+      type: 'business-step',
+      businessName: `For Each ${itemNoun}`,
+      businessDescription: `Repeats the following for every ${itemNoun.toLowerCase()} in the collection.`,
+      confidence: 0.6,
+    };
+  }
+  return {
+    type: 'business-step',
+    businessName: 'Repeat',
+    businessDescription: conditionText
+      ? `Repeats a block of code (\`${conditionText}\`).`
+      : 'Repeats a block of code.',
+    confidence: 0.4,
+  };
+}
+
+/** Describes a `switch`'s selector — the N-way counterpart to `describeDecision`'s yes/no branch (`describeCase` below covers each label). */
+export function describeSwitch(conditionText: string): CallDescription {
+  return {
+    type: 'decision',
+    businessName: 'Check Condition',
+    businessDescription: conditionText
+      ? `Branches based on \`${conditionText}\`.`
+      : 'Branches based on a value.',
+    confidence: 0.4,
+  };
+}
+
+/** Describes entering one `case` (or `default`) label's body — the switch counterpart to `describeCatch`. */
+export function describeCase(label: string): CallDescription {
+  if (label === 'default' || !label) {
+    return {
+      type: 'business-step',
+      businessName: 'Otherwise',
+      businessDescription: 'Handles every other case not matched above.',
+      confidence: 0.5,
+    };
+  }
+  return {
+    type: 'business-step',
+    businessName: `Case: ${label}`,
+    businessDescription: `Handles the \`${label}\` case.`,
+    confidence: 0.5,
   };
 }
 

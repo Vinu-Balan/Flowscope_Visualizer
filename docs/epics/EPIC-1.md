@@ -61,6 +61,14 @@ Tracked as individual sprints under `docs/sprints/`, sequenced per
      reassignment's call, and a call nested inside a `return`'s wrapper).
      Interface→implementation resolution, loops, general lambda bodies,
      and `switch` remain open, see SPRINT-12.md
+   - Full-depth debugging capture (`SPRINT-13.md`) — complete: a field
+     typed as a service interface now resolves to its real implementing
+     class (parser-java parses `interface` declarations at all now,
+     previously skipped entirely), diagnostic logger/console calls are
+     left out of the flow entirely, and a loop/classic `switch` are each
+     modeled as real steps for the first time. General lambda bodies
+     (`Optional...orElseThrow`, confirmed real 19x across 12 files) and
+     arrow-style `switch` expressions remain open, see SPRINT-13.md
 7. Inspector
 8. Code navigation
 9. Search & UX polish
@@ -135,8 +143,13 @@ business logic capture — call-chain inlining raised from 1 to 8 hops
 with a total-step safety valve, `try`/`catch` modeled as a real branch
 per catch clause, and two real data-loss bugs fixed: a plain
 reassignment's call and a call nested inside a `return`'s wrapper — one
-real endpoint went from 2 rendered steps to 10, another to 22) are
-complete and verified. Selecting a node already surfaces
+real endpoint went from 2 rendered steps to 10, another to 22), and
+SPRINT-13 (deeper still — a field typed as a service interface now
+resolves to its real implementation instead of dead-ending, diagnostic
+logging is left out of the flow entirely, and a loop/classic `switch`
+are each modeled as real steps for the first time — one endpoint went
+from 4 rendered steps to 32) are complete and verified. Selecting a node
+already surfaces
 business + technical detail in the side panel, a partial step toward the
 full Inspector acceptance criterion below — the "Open Source" jump to
 Monaco (source navigation isn't wired in yet) and search are the

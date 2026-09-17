@@ -74,11 +74,11 @@ project.
 ## Current status
 
 **Weekends 1–6 (Desktop foundation, Project opening, Project scanner, API
-discovery, Business flow engine, Graph visualization) complete, five
+discovery, Business flow engine, Graph visualization) complete, six
 real-world/direct-request hardening passes (Sprint 7, Sprint 8, Sprint 9,
-Sprint 11, Sprint 12), and Weekend 10 (Release preparation) pulled forward
-on direct request** — see `docs/sprints/SPRINT-1.md` through
-`SPRINT-12.md`. Weekends 7–9 (Inspector's remaining work, source
+Sprint 11, Sprint 12, Sprint 13), and Weekend 10 (Release preparation)
+pulled forward on direct request** — see `docs/sprints/SPRINT-1.md`
+through `SPRINT-13.md`. Weekends 7–9 (Inspector's remaining work, source
 navigation, search) are still ahead; Weekend 10 shipped early because the
 user asked for a runnable package specifically. FlowScope launches as a
 real Electron desktop app: Welcome/Workspace routes, resizable three-pane
@@ -146,4 +146,15 @@ reassignment's call (`user = repo.find(id);`) and a call nested inside a
 single most common real Spring MVC controller shape there is) were both
 previously invisible (SPRINT-12.md, grounded in a survey of real call
 chains across all four of the user's projects — one endpoint went from 2
-rendered steps to 10, another to 22).
+rendered steps to 10, another to 22). Business-flow extraction now also
+resolves a field typed as a service interface (e.g. `CommentService`) to
+its real implementing class (`CommentServiceImplementation`) instead of
+dead-ending at the interface's own bodyless method — `packages/parser-java`
+now parses `interface` declarations at all, previously skipped entirely —
+leaves diagnostic logger/console calls out of the flow entirely per direct
+request, and models a loop (walked once, framed as "For Each X"/"Repeat")
+and a classic `switch` (a real N-way branch, one step per case) as real
+steps for the first time (SPRINT-13.md, direct response to "the nodes end
+without any meaning... make sure the flow goes all the way into the
+code" — one previously-thin endpoint went from 4 rendered steps to 32
+purely from the interface fix).
